@@ -1,7 +1,7 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Categories from "@/components/Categories";
-import FeaturedBooks from "@/components/FeaturedBooks";
+import { ShopifyProducts } from "@/components/ShopifyProducts";
 import Benefits from "@/components/Benefits";
 import Newsletter from "@/components/Newsletter";
 import Footer from "@/components/Footer";
@@ -13,7 +13,7 @@ const Index = () => {
       <main>
         <Hero />
         <Categories />
-        <FeaturedBooks />
+        <ShopifyProducts />
         <Benefits />
         <Newsletter />
       </main>
