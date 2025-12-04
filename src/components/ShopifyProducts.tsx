@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
 import { ProductCard } from "./ProductCard";
 import { Button } from "@/components/ui/button";
@@ -67,9 +68,11 @@ export const ShopifyProducts = () => {
             </p>
           </div>
           {products.length > 0 && (
-            <Button variant="outline" size="lg" className="mt-6 md:mt-0">
-              Ver Todos
-            </Button>
+            <Link to="/livros">
+              <Button variant="outline" size="lg" className="mt-6 md:mt-0">
+                Ver Todos
+              </Button>
+            </Link>
           )}
         </div>
 
