@@ -1,4 +1,5 @@
 import { Heart, BookOpen, Lightbulb, Star, Coffee, Flower2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const categories = [
   {
@@ -7,13 +8,15 @@ const categories = [
     icon: Heart,
     count: "850+ livros",
     color: "bg-rose-light text-rose-dark",
+    filter: "Romance",
   },
   {
-    name: "Desenvolvimento",
+    name: "Autoajuda",
     description: "Cresça e evolua",
     icon: Lightbulb,
     count: "420+ livros",
     color: "bg-gold-light text-gold",
+    filter: "Autoajuda",
   },
   {
     name: "Ficção",
@@ -21,20 +24,15 @@ const categories = [
     icon: BookOpen,
     count: "630+ livros",
     color: "bg-sage-light text-sage-dark",
+    filter: "Ficção",
   },
   {
-    name: "Best-sellers",
-    description: "Os mais vendidos",
+    name: "Poesia",
+    description: "Versos e emoções",
     icon: Star,
     count: "200+ livros",
     color: "bg-accent text-accent-foreground",
-  },
-  {
-    name: "Bem-estar",
-    description: "Cuide de você",
-    icon: Flower2,
-    count: "310+ livros",
-    color: "bg-secondary text-secondary-foreground",
+    filter: "Poesia",
   },
   {
     name: "Clássicos",
@@ -42,6 +40,15 @@ const categories = [
     icon: Coffee,
     count: "180+ livros",
     color: "bg-muted text-muted-foreground",
+    filter: "Clássicos",
+  },
+  {
+    name: "Drama",
+    description: "Emoções intensas",
+    icon: Flower2,
+    count: "310+ livros",
+    color: "bg-secondary text-secondary-foreground",
+    filter: "Drama",
   },
 ];
 
@@ -63,9 +70,9 @@ const Categories = () => {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
           {categories.map((category, index) => (
-            <a
+            <Link
               key={category.name}
-              href="#"
+              to={`/livros?categoria=${encodeURIComponent(category.filter)}`}
               className="group p-6 bg-card rounded-2xl shadow-card hover-lift text-center animate-fade-up"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
@@ -83,7 +90,7 @@ const Categories = () => {
               <span className="text-primary text-xs font-medium">
                 {category.count}
               </span>
-            </a>
+            </Link>
           ))}
         </div>
       </div>
