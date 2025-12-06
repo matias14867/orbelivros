@@ -49,13 +49,17 @@ export const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
       <Link to={`/produto/${node.handle}`}>
         <div className="relative overflow-hidden rounded-2xl bg-card mb-4">
           <button 
-            className="absolute top-4 right-4 z-10 w-10 h-10 bg-background/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-background"
+            className="absolute top-4 right-4 z-10 w-10 h-10 bg-background/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-background hover:text-rose-500"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              toast.success("Adicionado aos favoritos!", {
+                description: node.title,
+                position: "top-center"
+              });
             }}
           >
-            <Heart className="h-5 w-5 text-primary" />
+            <Heart className="h-5 w-5 text-primary hover:fill-current" />
           </button>
 
           <div className="aspect-[3/4] overflow-hidden bg-muted">

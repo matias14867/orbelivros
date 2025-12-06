@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { useSearchParams } from "react-router-dom";
 import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
 import { ProductCard } from "@/components/ProductCard";
 import Header from "@/components/Header";
@@ -15,12 +16,33 @@ import {
 } from "@/components/ui/select";
 
 const AllBooks = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<ShopifyProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string>("newest");
-  const [filterCategory, setFilterCategory] = useState<string>("all");
+  
+  // Get category from URL params or default to "all"
+  const urlCategory = searchParams.get("categoria") || "all";
+  const [filterCategory, setFilterCategory] = useState<string>(urlCategory);
+
+  // Update filter when URL changes
+  useEffect(() => {
+    const categoryFromUrl = searchParams.get("categoria") || "all";
+    setFilterCategory(categoryFromUrl.toLowerCase());
+  }, [searchParams]);
+
+  // Update URL when filter changes manually
+  const handleCategoryChange = (value: string) => {
+    setFilterCategory(value);
+    if (value === "all") {
+      searchParams.delete("categoria");
+    } else {
+      searchParams.set("categoria", value);
+    }
+    setSearchParams(searchParams);
+  };
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -81,10 +103,12 @@ const AllBooks = () => {
   const categories = [
     { value: "all", label: "Todas as Categorias" },
     { value: "romance", label: "Romance" },
+    { value: "autoajuda", label: "Autoajuda" },
+    { value: "poesia", label: "Poesia" },
+    { value: "clássicos", label: "Clássicos" },
+    { value: "ficção", label: "Ficção" },
+    { value: "drama", label: "Drama" },
     { value: "suspense", label: "Suspense" },
-    { value: "clássico", label: "Clássicos" },
-    { value: "thriller", label: "Thriller" },
-    { value: "young adult", label: "Young Adult" },
   ];
 
   return (
@@ -126,7 +150,7 @@ const AllBooks = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <Select value={filterCategory} onValueChange={handleCategoryChange}>
                   <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Categoria" />
                   </SelectTrigger>
@@ -175,7 +199,7 @@ const AllBooks = () => {
                 <p className="text-muted-foreground max-w-md mx-auto mb-6">
                   Tente ajustar os filtros para ver mais resultados.
                 </p>
-                <Button variant="outline" onClick={() => setFilterCategory("all")}>
+                <Button variant="outline" onClick={() => handleCategoryChange("all")}>
                   Limpar Filtros
                 </Button>
               </div>
