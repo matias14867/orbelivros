@@ -53,7 +53,7 @@ const Profile = () => {
   return (
     <>
       <Helmet>
-        <title>Meu Perfil | Livraria Encanto</title>
+        <title>Meu Perfil | Orbe Livros</title>
         <meta name="description" content="Gerencie seu perfil, favoritos e histórico de compras" />
       </Helmet>
 

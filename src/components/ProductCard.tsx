@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { Heart, ShoppingBag, Star } from "lucide-react";
+import { Heart, ShoppingBag } from "lucide-react";
 import { ShopifyProduct } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
+import { useFavorites } from "@/hooks/useFavorites";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
@@ -12,12 +13,14 @@ interface ProductCardProps {
 
 export const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
   const addItem = useCartStore(state => state.addItem);
+  const { isFavorite, toggleFavorite } = useFavorites();
   const { node } = product;
   
   const firstVariant = node.variants.edges[0]?.node;
   const price = parseFloat(node.priceRange.minVariantPrice.amount);
   const imageUrl = node.images.edges[0]?.node.url;
   const imageAlt = node.images.edges[0]?.node.altText || node.title;
+  const isProductFavorite = isFavorite(node.handle);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -41,6 +44,18 @@ export const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
     });
   };
 
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    await toggleFavorite({
+      handle: node.handle,
+      title: node.title,
+      image: imageUrl,
+      price: price,
+    });
+  };
+
   return (
     <article
       className="group animate-fade-up"
@@ -49,17 +64,18 @@ export const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
       <Link to={`/produto/${node.handle}`}>
         <div className="relative overflow-hidden rounded-2xl bg-card mb-4">
           <button 
-            className="absolute top-4 right-4 z-10 w-10 h-10 bg-background/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-background hover:text-rose-500"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toast.success("Adicionado aos favoritos!", {
-                description: node.title,
-                position: "top-center"
-              });
-            }}
+            className={`absolute top-4 right-4 z-10 w-10 h-10 bg-background/80 backdrop-blur-sm rounded-full flex items-center justify-center transition-all duration-300 hover:bg-background ${
+              isProductFavorite ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            }`}
+            onClick={handleToggleFavorite}
           >
-            <Heart className="h-5 w-5 text-primary hover:fill-current" />
+            <Heart 
+              className={`h-5 w-5 transition-colors ${
+                isProductFavorite 
+                  ? "fill-primary text-primary" 
+                  : "text-muted-foreground hover:text-primary"
+              }`} 
+            />
           </button>
 
           <div className="aspect-[3/4] overflow-hidden bg-muted">

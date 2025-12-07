@@ -42,7 +42,7 @@ const Footer = () => {
           <div className="lg:col-span-2">
             <a href="#" className="inline-block mb-4">
               <span className="font-serif text-2xl font-semibold text-foreground">
-                Leia<span className="text-primary">Comigo</span>
+                Orbe <span className="text-primary">Livros</span>
               </span>
             </a>
             <p className="text-muted-foreground mb-6 max-w-sm">
@@ -133,7 +133,7 @@ const Footer = () => {
               </span>
               <span className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary" />
-                contato@leiacomigo.com.br
+                contato@orbelivros.com.br
               </span>
             </div>
           </div>
@@ -142,7 +142,7 @@ const Footer = () => {
         {/* Copyright */}
         <div className="border-t border-border mt-8 pt-8 text-center">
           <p className="text-muted-foreground text-sm">
-            © {currentYear} LeiaComigo. Todos os direitos reservados.
+            © {currentYear} Orbe Livros. Todos os direitos reservados.
           </p>
         </div>
       </div>
