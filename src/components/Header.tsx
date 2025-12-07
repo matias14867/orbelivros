@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Heart, Search, User, LogOut } from "lucide-react";
+import { Menu, X, Heart, Search, User, LogOut, Shield } from "lucide-react";
 import { CartDrawer } from "./CartDrawer";
 import { SearchBar } from "./SearchBar";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -18,6 +19,7 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { isAdmin } = useUserRole();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -73,7 +75,7 @@ const Header = () => {
                 variant="ghost" 
                 size="icon" 
                 className="hidden md:flex"
-                onClick={() => toast.success("Favoritos em breve!")}
+                onClick={() => navigate("/perfil")}
               >
                 <Heart className="h-5 w-5" />
               </Button>
@@ -89,6 +91,17 @@ const Header = () => {
                     <DropdownMenuItem className="font-medium">
                       {user.email}
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate("/perfil")}>
+                      <User className="h-4 w-4 mr-2" />
+                      Meu Perfil
+                    </DropdownMenuItem>
+                    {isAdmin && (
+                      <DropdownMenuItem onClick={() => navigate("/admin")}>
+                        <Shield className="h-4 w-4 mr-2" />
+                        Painel Admin
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut}>
                       <LogOut className="h-4 w-4 mr-2" />
@@ -150,7 +163,10 @@ const Header = () => {
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    onClick={() => toast.success("Favoritos em breve!")}
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate("/perfil");
+                    }}
                   >
                     <Heart className="h-4 w-4 mr-2" />
                     Favoritos
