@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchProductByHandle } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
+import { useFavorites } from "@/hooks/useFavorites";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Minus, Plus, ShoppingBag, Heart, Truck, Shield } from "lucide-react";
 import { toast } from "sonner";
@@ -58,6 +59,7 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const addItem = useCartStore(state => state.addItem);
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -98,6 +100,16 @@ const ProductDetail = () => {
     toast.success("Adicionado ao carrinho!", {
       description: `${quantity}x ${product.title}`,
       position: "top-center"
+    });
+  };
+
+  const handleToggleFavorite = () => {
+    if (!product) return;
+    toggleFavorite({
+      handle: product.handle,
+      title: product.title,
+      image: product.images.edges[0]?.node.url,
+      price: parseFloat(product.priceRange.minVariantPrice.amount),
     });
   };
 
@@ -262,8 +274,13 @@ const ProductDetail = () => {
                   <ShoppingBag className="h-5 w-5" />
                   Adicionar ao Carrinho
                 </Button>
-                <Button variant="outline" size="xl">
-                  <Heart className="h-5 w-5" />
+                <Button 
+                  variant="outline" 
+                  size="xl"
+                  onClick={handleToggleFavorite}
+                  className={isFavorite(product.handle) ? "text-primary border-primary" : ""}
+                >
+                  <Heart className={`h-5 w-5 ${isFavorite(product.handle) ? "fill-primary" : ""}`} />
                 </Button>
               </div>
 
