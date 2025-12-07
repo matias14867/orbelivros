@@ -32,8 +32,8 @@ const Header = () => {
     { name: "Início", href: "/" },
     { name: "Todos os Livros", href: "/livros" },
     { name: "Categorias", href: "/#categorias" },
-    { name: "Destaques", href: "/#destaques" },
-    { name: "Contato", href: "/#newsletter" },
+    { name: "Destaques", href: "/destaques" },
+    { name: "Contato", href: "/contato" },
   ];
 
   return (
@@ -44,7 +44,7 @@ const Header = () => {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
               <span className="font-serif text-2xl md:text-3xl font-semibold text-foreground">
-                Leia<span className="text-primary">Comigo</span>
+                Orbe <span className="text-primary">Livros</span>
               </span>
             </Link>
 
