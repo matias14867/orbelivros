@@ -1,16 +1,28 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { usePurchaseHistory } from "@/hooks/usePurchaseHistory";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Heart, ShoppingBag, User, Loader2, BookOpen, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Heart, ShoppingBag, User, Loader2, BookOpen, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 const Profile = () => {
@@ -18,6 +30,7 @@ const Profile = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const { favorites, loading: favLoading, removeFavorite } = useFavorites();
   const { purchases, loading: purchaseLoading } = usePurchaseHistory();
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -29,6 +42,29 @@ const Profile = () => {
     await signOut();
     toast.success("Você saiu da sua conta");
     navigate("/");
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    setDeleting(true);
+    try {
+      // Delete user's data from all tables
+      await supabase.from('favorites').delete().eq('user_id', user.id);
+      await supabase.from('purchase_history').delete().eq('user_id', user.id);
+      await supabase.from('user_roles').delete().eq('user_id', user.id);
+      await supabase.from('profiles').delete().eq('user_id', user.id);
+      
+      // Sign out the user
+      await signOut();
+      
+      toast.success("Sua conta foi excluída com sucesso");
+      navigate("/");
+    } catch (error) {
+      toast.error("Erro ao excluir conta. Tente novamente.");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (authLoading) {
@@ -76,9 +112,46 @@ const Profile = () => {
                   </h1>
                   <p className="text-muted-foreground">{user.email}</p>
                 </div>
-                <Button variant="outline" onClick={handleSignOut}>
-                  Sair da conta
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button variant="outline" onClick={handleSignOut}>
+                    Sair da conta
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir conta
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-destructive" />
+                          Excluir conta permanentemente?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação não pode ser desfeita. Todos os seus dados serão
+                          permanentemente removidos, incluindo favoritos e histórico de compras.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDeleteAccount}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          disabled={deleting}
+                        >
+                          {deleting ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 mr-2" />
+                          )}
+                          Excluir minha conta
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -88,11 +161,11 @@ const Profile = () => {
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="favorites" className="flex items-center gap-2">
                 <Heart className="h-4 w-4" />
-                Favoritos
+                Favoritos ({favorites.length})
               </TabsTrigger>
               <TabsTrigger value="purchases" className="flex items-center gap-2">
                 <ShoppingBag className="h-4 w-4" />
-                Histórico
+                Histórico ({purchases.length})
               </TabsTrigger>
             </TabsList>
 
@@ -127,12 +200,16 @@ const Profile = () => {
                           key={fav.id}
                           className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg"
                         >
-                          {fav.product_image && (
+                          {fav.product_image ? (
                             <img
                               src={fav.product_image}
                               alt={fav.product_title}
                               className="w-16 h-20 object-cover rounded"
                             />
+                          ) : (
+                            <div className="w-16 h-20 bg-muted rounded flex items-center justify-center">
+                              <BookOpen className="h-6 w-6 text-muted-foreground" />
+                            </div>
                           )}
                           <div className="flex-1 min-w-0">
                             <Link
@@ -193,12 +270,16 @@ const Profile = () => {
                           key={purchase.id}
                           className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg"
                         >
-                          {purchase.product_image && (
+                          {purchase.product_image ? (
                             <img
                               src={purchase.product_image}
                               alt={purchase.product_title}
                               className="w-16 h-20 object-cover rounded"
                             />
+                          ) : (
+                            <div className="w-16 h-20 bg-muted rounded flex items-center justify-center">
+                              <BookOpen className="h-6 w-6 text-muted-foreground" />
+                            </div>
                           )}
                           <div className="flex-1 min-w-0">
                             <Link

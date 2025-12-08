@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BookOpen, Eye, EyeOff, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
 
 const loginSchema = z.object({
   email: z.string().trim().email({ message: "Email inválido" }),
@@ -23,8 +23,14 @@ const signUpSchema = loginSchema.extend({
   path: ["confirmPassword"],
 });
 
+const resetSchema = z.object({
+  email: z.string().trim().email({ message: "Email inválido" }),
+});
+
+type AuthMode = "login" | "signup" | "reset";
+
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -46,10 +52,12 @@ const Auth = () => {
     setErrors({});
     
     try {
-      if (isLogin) {
+      if (mode === "login") {
         loginSchema.parse({ email, password });
-      } else {
+      } else if (mode === "signup") {
         signUpSchema.parse({ email, password, fullName, confirmPassword });
+      } else {
+        resetSchema.parse({ email });
       }
       return true;
     } catch (error) {
@@ -74,7 +82,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      if (isLogin) {
+      if (mode === "login") {
         const { error } = await signIn(email, password);
         if (error) {
           if (error.message.includes("Invalid login credentials")) {
@@ -86,7 +94,7 @@ const Auth = () => {
           toast.success("Login realizado com sucesso!");
           navigate("/");
         }
-      } else {
+      } else if (mode === "signup") {
         const { error } = await signUp(email, password, fullName);
         if (error) {
           if (error.message.includes("User already registered")) {
@@ -98,10 +106,29 @@ const Auth = () => {
           toast.success("Conta criada com sucesso!");
           navigate("/");
         }
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth`,
+        });
+        if (error) {
+          toast.error(error.message);
+        } else {
+          toast.success("Email de recuperação enviado!", {
+            description: "Verifique sua caixa de entrada.",
+          });
+          setMode("login");
+        }
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const switchMode = (newMode: AuthMode) => {
+    setMode(newMode);
+    setErrors({});
+    setPassword("");
+    setConfirmPassword("");
   };
 
   if (loading) {
@@ -112,33 +139,47 @@ const Auth = () => {
     );
   }
 
+  const getTitle = () => {
+    switch (mode) {
+      case "login": return "Bem-vinda de volta!";
+      case "signup": return "Crie sua conta";
+      case "reset": return "Recuperar senha";
+    }
+  };
+
+  const getSubtitle = () => {
+    switch (mode) {
+      case "login": return "Entre para continuar sua jornada literária";
+      case "signup": return "Junte-se a milhares de leitoras apaixonadas";
+      case "reset": return "Digite seu email para receber o link de recuperação";
+    }
+  };
+
   return (
     <>
       <Helmet>
-        <title>{isLogin ? "Entrar" : "Criar Conta"} | LeiaComigo</title>
-        <meta name="description" content="Acesse sua conta na LeiaComigo e descubra livros incríveis." />
+        <title>{mode === "login" ? "Entrar" : mode === "signup" ? "Criar Conta" : "Recuperar Senha"} | Orbe Livros</title>
+        <meta name="description" content="Acesse sua conta na Orbe Livros e descubra livros incríveis." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-primary/5 to-background p-4">
         <Link to="/" className="flex items-center gap-2 mb-8">
           <BookOpen className="h-8 w-8 text-primary" />
           <span className="font-serif text-3xl font-semibold text-foreground">
-            Leia<span className="text-primary">Comigo</span>
+            Orbe <span className="text-primary">Livros</span>
           </span>
         </Link>
 
         <div className="w-full max-w-md bg-card rounded-2xl shadow-card p-8">
           <h1 className="font-serif text-2xl font-bold text-center text-foreground mb-2">
-            {isLogin ? "Bem-vinda de volta!" : "Crie sua conta"}
+            {getTitle()}
           </h1>
           <p className="text-muted-foreground text-center mb-6">
-            {isLogin 
-              ? "Entre para continuar sua jornada literária" 
-              : "Junte-se a milhares de leitoras apaixonadas"}
+            {getSubtitle()}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
+            {mode === "signup" && (
               <div className="space-y-2">
                 <Label htmlFor="fullName">Nome completo</Label>
                 <Input
@@ -170,31 +211,33 @@ const Auth = () => {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={errors.password ? "border-destructive pr-10" : "pr-10"}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+            {mode !== "reset" && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password}</p>
+                )}
               </div>
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
-              )}
-            </div>
+            )}
 
-            {!isLogin && (
+            {mode === "signup" && (
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirmar senha</Label>
                 <Input
@@ -211,32 +254,54 @@ const Auth = () => {
               </div>
             )}
 
+            {mode === "login" && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => switchMode("reset")}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Esqueceu a senha?
+                </button>
+              </div>
+            )}
+
             <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {isLogin ? "Entrando..." : "Criando conta..."}
+                  {mode === "login" ? "Entrando..." : mode === "signup" ? "Criando conta..." : "Enviando..."}
                 </>
               ) : (
-                isLogin ? "Entrar" : "Criar conta"
+                mode === "login" ? "Entrar" : mode === "signup" ? "Criar conta" : "Enviar link"
               )}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-muted-foreground">
-              {isLogin ? "Não tem uma conta?" : "Já tem uma conta?"}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrors({});
-                }}
-                className="ml-1 text-primary hover:underline font-medium"
-              >
-                {isLogin ? "Criar conta" : "Entrar"}
-              </button>
-            </p>
+            {mode === "reset" ? (
+              <p className="text-muted-foreground">
+                Lembrou a senha?
+                <button
+                  type="button"
+                  onClick={() => switchMode("login")}
+                  className="ml-1 text-primary hover:underline font-medium"
+                >
+                  Voltar ao login
+                </button>
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                {mode === "login" ? "Não tem uma conta?" : "Já tem uma conta?"}
+                <button
+                  type="button"
+                  onClick={() => switchMode(mode === "login" ? "signup" : "login")}
+                  className="ml-1 text-primary hover:underline font-medium"
+                >
+                  {mode === "login" ? "Criar conta" : "Entrar"}
+                </button>
+              </p>
+            )}
           </div>
         </div>
 

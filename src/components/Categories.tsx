@@ -1,4 +1,4 @@
-import { Heart, BookOpen, Lightbulb, Star, Coffee, Flower2 } from "lucide-react";
+import { Heart, BookOpen, Lightbulb, Star, Coffee, Flower2, Sparkles, BookText } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const categories = [
@@ -6,7 +6,6 @@ const categories = [
     name: "Romance",
     description: "Histórias de amor apaixonantes",
     icon: Heart,
-    count: "850+ livros",
     color: "bg-rose-light text-rose-dark",
     filter: "Romance",
   },
@@ -14,7 +13,6 @@ const categories = [
     name: "Autoajuda",
     description: "Cresça e evolua",
     icon: Lightbulb,
-    count: "420+ livros",
     color: "bg-gold-light text-gold",
     filter: "Autoajuda",
   },
@@ -22,33 +20,43 @@ const categories = [
     name: "Ficção",
     description: "Mundos extraordinários",
     icon: BookOpen,
-    count: "630+ livros",
     color: "bg-sage-light text-sage-dark",
     filter: "Ficção",
   },
   {
-    name: "Poesia",
-    description: "Versos e emoções",
-    icon: Star,
-    count: "200+ livros",
-    color: "bg-accent text-accent-foreground",
-    filter: "Poesia",
+    name: "Fantasia",
+    description: "Aventuras mágicas",
+    icon: Sparkles,
+    color: "bg-purple-100 text-purple-700",
+    filter: "Fantasia",
   },
   {
     name: "Clássicos",
     description: "Literatura atemporal",
     icon: Coffee,
-    count: "180+ livros",
     color: "bg-muted text-muted-foreground",
     filter: "Clássicos",
+  },
+  {
+    name: "Poesia",
+    description: "Versos e emoções",
+    icon: Star,
+    color: "bg-accent text-accent-foreground",
+    filter: "Poesia",
   },
   {
     name: "Drama",
     description: "Emoções intensas",
     icon: Flower2,
-    count: "310+ livros",
     color: "bg-secondary text-secondary-foreground",
     filter: "Drama",
+  },
+  {
+    name: "Distopia",
+    description: "Futuros alternativos",
+    icon: BookText,
+    color: "bg-slate-200 text-slate-700",
+    filter: "Distopia",
   },
 ];
 
@@ -68,28 +76,25 @@ const Categories = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           {categories.map((category, index) => (
             <Link
               key={category.name}
               to={`/livros?categoria=${encodeURIComponent(category.filter)}`}
-              className="group p-6 bg-card rounded-2xl shadow-card hover-lift text-center animate-fade-up"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className="group p-4 md:p-6 bg-card rounded-2xl shadow-card hover-lift text-center animate-fade-up"
+              style={{ animationDelay: `${index * 0.05}s` }}
             >
               <div
-                className={`w-14 h-14 ${category.color} rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`}
+                className={`w-12 h-12 md:w-14 md:h-14 ${category.color} rounded-xl flex items-center justify-center mx-auto mb-3 md:mb-4 group-hover:scale-110 transition-transform duration-300`}
               >
-                <category.icon className="h-7 w-7" />
+                <category.icon className="h-6 w-6 md:h-7 md:w-7" />
               </div>
-              <h3 className="font-serif font-semibold text-foreground mb-1">
+              <h3 className="font-serif font-semibold text-foreground text-sm md:text-base mb-1">
                 {category.name}
               </h3>
-              <p className="text-muted-foreground text-sm mb-2">
+              <p className="text-muted-foreground text-xs hidden md:block">
                 {category.description}
               </p>
-              <span className="text-primary text-xs font-medium">
-                {category.count}
-              </span>
             </Link>
           ))}
         </div>
