@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { z } from "zod";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,20 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageSquare, Mail, Phone, MapPin, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+
+const MAX_MESSAGE_LENGTH = 1000;
+
+const contactSchema = z.object({
+  name: z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
+  email: z.string().trim().email("Email inválido").max(255, "Email muito longo"),
+  subject: z.string().min(1, "Selecione um assunto"),
+  message: z.string().trim().min(10, "Mensagem deve ter pelo menos 10 caracteres").max(MAX_MESSAGE_LENGTH, `Mensagem deve ter no máximo ${MAX_MESSAGE_LENGTH} caracteres`),
+});
 
 const Contact = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -19,26 +32,47 @@ const Contact = () => {
     subject: "",
     message: "",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
     
-    if (!formData.name || !formData.email || !formData.subject || !formData.message) {
-      toast.error("Por favor, preencha todos os campos");
+    const result = contactSchema.safeParse(formData);
+    if (!result.success) {
+      const newErrors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          newErrors[err.path[0] as string] = err.message;
+        }
+      });
+      setErrors(newErrors);
       return;
     }
 
     setLoading(true);
     
-    // Simulate sending message
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    toast.success("Mensagem enviada com sucesso!", {
-      description: "Responderemos em até 24 horas úteis.",
-    });
-    
-    setFormData({ name: "", email: "", subject: "", message: "" });
-    setLoading(false);
+    try {
+      const { error } = await supabase.from("contacts").insert({
+        name: formData.name,
+        email: formData.email,
+        subject: formData.subject,
+        message: formData.message,
+        user_id: user?.id || null,
+      });
+
+      if (error) throw error;
+      
+      toast.success("Mensagem enviada com sucesso!", {
+        description: "Responderemos em até 24 horas úteis.",
+      });
+      
+      setFormData({ name: "", email: "", subject: "", message: "" });
+    } catch (error) {
+      toast.error("Erro ao enviar mensagem. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const contactInfo = [
@@ -61,6 +95,8 @@ const Contact = () => {
       description: "Brasil",
     },
   ];
+
+  const remainingChars = MAX_MESSAGE_LENGTH - formData.message.length;
 
   return (
     <>
@@ -125,7 +161,10 @@ const Contact = () => {
                         placeholder="Seu nome"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        maxLength={100}
+                        className={errors.name ? "border-destructive" : ""}
                       />
+                      {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">E-mail</Label>
@@ -135,7 +174,10 @@ const Contact = () => {
                         placeholder="seu@email.com"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        maxLength={255}
+                        className={errors.email ? "border-destructive" : ""}
                       />
+                      {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                     </div>
                   </div>
 
@@ -145,29 +187,38 @@ const Contact = () => {
                       value={formData.subject}
                       onValueChange={(value) => setFormData({ ...formData, subject: value })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className={errors.subject ? "border-destructive" : ""}>
                         <SelectValue placeholder="Selecione o assunto" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="duvida">Dúvida sobre produto</SelectItem>
-                        <SelectItem value="pedido">Acompanhar pedido</SelectItem>
-                        <SelectItem value="troca">Troca ou devolução</SelectItem>
-                        <SelectItem value="reclamacao">Reclamação</SelectItem>
-                        <SelectItem value="sugestao">Sugestão</SelectItem>
-                        <SelectItem value="outro">Outro</SelectItem>
+                        <SelectItem value="Dúvida sobre produto">Dúvida sobre produto</SelectItem>
+                        <SelectItem value="Acompanhar pedido">Acompanhar pedido</SelectItem>
+                        <SelectItem value="Troca ou devolução">Troca ou devolução</SelectItem>
+                        <SelectItem value="Reclamação">Reclamação</SelectItem>
+                        <SelectItem value="Sugestão">Sugestão</SelectItem>
+                        <SelectItem value="Outro">Outro</SelectItem>
                       </SelectContent>
                     </Select>
+                    {errors.subject && <p className="text-sm text-destructive">{errors.subject}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="message">Mensagem</Label>
+                    <Label htmlFor="message">
+                      Mensagem
+                      <span className={`ml-2 text-xs ${remainingChars < 100 ? "text-destructive" : "text-muted-foreground"}`}>
+                        ({remainingChars} caracteres restantes)
+                      </span>
+                    </Label>
                     <Textarea
                       id="message"
                       placeholder="Descreva sua mensagem em detalhes..."
                       rows={5}
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      maxLength={MAX_MESSAGE_LENGTH}
+                      className={errors.message ? "border-destructive" : ""}
                     />
+                    {errors.message && <p className="text-sm text-destructive">{errors.message}</p>}
                   </div>
 
                   <Button type="submit" variant="hero" size="lg" disabled={loading} className="w-full sm:w-auto">
