@@ -225,7 +225,7 @@ const Admin = () => {
     setGenerating(true);
     try {
       const names = ["Maria Silva", "Ana Santos", "Julia Oliveira", "Carla Souza", "Paula Lima", "Fernanda Costa"];
-      const name = names[Math.floor(Math.random() * names.length)];
+      const name = `Teste - ${names[Math.floor(Math.random() * names.length)]}`;
       
       // Create a fake profile entry (without actual auth user)
       const { error } = await supabase.from('profiles').insert({
@@ -247,22 +247,23 @@ const Admin = () => {
     setGenerating(true);
     try {
       const titles = [
-        "O Jardim Secreto",
-        "A Última Rosa",
-        "Caminhos do Coração",
-        "Noites de Verão",
-        "O Segredo da Lua",
-        "Flores de Inverno",
+        "[TEST] O Jardim Secreto",
+        "[TEST] A Última Rosa",
+        "[TEST] Caminhos do Coração",
+        "[TEST] Noites de Verão",
+        "[TEST] O Segredo da Lua",
+        "[TEST] Flores de Inverno",
       ];
       const authors = ["Emily Rose", "Clara Mendes", "Sophia Bennett", "Lucia Torres"];
-      const title = titles[Math.floor(Math.random() * titles.length)] + " " + Math.floor(Math.random() * 100);
+      const baseTitle = titles[Math.floor(Math.random() * titles.length)];
+      const title = `${baseTitle} ${Math.floor(Math.random() * 100)}`;
       const author = authors[Math.floor(Math.random() * authors.length)];
       const price = (Math.random() * 80 + 20).toFixed(2);
 
       await addBook({
         title,
         author,
-        description: `Uma história envolvente sobre ${title.toLowerCase()}.`,
+        description: `Uma história envolvente sobre ${baseTitle.toLowerCase()}.`,
         price: parseFloat(price),
         original_price: parseFloat(price) + 20,
         category: CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)],
@@ -298,7 +299,7 @@ const Admin = () => {
 
       const { error } = await supabase.from('purchase_history').insert({
         user_id: profiles[0].user_id,
-        order_id: `ORD-${Date.now()}`,
+        order_id: `TEST-${Date.now()}`,
         product_handle: book.handle,
         product_title: book.title,
         product_image: book.image_url,
@@ -643,9 +644,9 @@ const Admin = () => {
                     <TestTube className="h-5 w-5" />
                     Geração de Dados de Teste
                   </CardTitle>
-                  <CardDescription>Popule o banco de dados com dados de teste</CardDescription>
+                  <CardDescription>Popule e limpe o banco de dados com dados de teste (apenas ambiente de desenvolvimento)</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div className="grid sm:grid-cols-3 gap-4">
                     <Button
                       variant="outline"
@@ -686,6 +687,38 @@ const Admin = () => {
                       )}
                       <span>Gerar Compra</span>
                     </Button>
+                  </div>
+
+                  <div className="border-t pt-4 space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Use os botões abaixo para limpar apenas dados de teste gerados automaticamente. Dados reais de clientes não serão afetados.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        variant="destructive"
+                        disabled={generating}
+                        className="flex-1"
+                        onClick={async () => {
+                          if (!confirm("Tem certeza que deseja apagar TODOS os dados de teste?")) return;
+                          setGenerating(true);
+                          try {
+                            await supabase.from('purchase_history').delete().like('order_id', 'TEST-%');
+                            await supabase.from('books').delete().like('title', '[TEST]%');
+                            await supabase.from('profiles').delete().like('full_name', 'Teste - %');
+                            toast.success("Dados de teste removidos com sucesso!");
+                            refetchBooks();
+                            refetchUsers();
+                            refetchContacts();
+                          } catch (error) {
+                            toast.error("Erro ao limpar dados de teste");
+                          } finally {
+                            setGenerating(false);
+                          }
+                        }}
+                      >
+                        Limpar dados de teste
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

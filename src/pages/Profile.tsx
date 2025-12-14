@@ -46,18 +46,16 @@ const Profile = () => {
 
   const handleDeleteAccount = async () => {
     if (!user) return;
-    
+
     setDeleting(true);
     try {
-      // Delete user's data from all tables
-      await supabase.from('favorites').delete().eq('user_id', user.id);
-      await supabase.from('purchase_history').delete().eq('user_id', user.id);
-      await supabase.from('user_roles').delete().eq('user_id', user.id);
-      await supabase.from('profiles').delete().eq('user_id', user.id);
-      
-      // Sign out the user
+      const { error } = await supabase.functions.invoke("delete-user-account", {
+        body: { userId: user.id },
+      });
+
+      if (error) throw error;
+
       await signOut();
-      
       toast.success("Sua conta foi excluída com sucesso");
       navigate("/");
     } catch (error) {
