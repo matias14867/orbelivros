@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { useSearchParams, Link } from "react-router-dom";
 import { useBooks, Book } from "@/hooks/useBooks";
+import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Loader2, BookOpen, Filter, Search, X, ShoppingCart, Heart } from "lucide-react";
@@ -15,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ProductCard } from "@/components/ProductCard";
 import { useCartStore } from "@/stores/cartStore";
 import { useFavorites } from "@/hooks/useFavorites";
 import { toast } from "sonner";
@@ -32,9 +34,11 @@ const CATEGORIES = [
   { value: "Literatura Brasileira", label: "Literatura Brasileira" },
   { value: "Infantojuvenil", label: "Infantojuvenil" },
   { value: "Tragédia", label: "Tragédia" },
+  { value: "Suspense", label: "Suspense" },
 ];
 
-const BookCard = ({ book }: { book: Book }) => {
+// Component for database books
+const DatabaseBookCard = ({ book }: { book: Book }) => {
   const addItem = useCartStore((state) => state.addItem);
   const { toggleFavorite, isFavorite } = useFavorites();
 
@@ -42,11 +46,10 @@ const BookCard = ({ book }: { book: Book }) => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Create a compatible product structure for the cart
     const cartItem = {
       product: {
         node: {
-          id: book.id,
+          id: `db-${book.id}`,
           title: book.title,
           description: book.description || "",
           handle: book.handle,
@@ -62,7 +65,7 @@ const BookCard = ({ book }: { book: Book }) => {
           variants: {
             edges: [{
               node: {
-                id: `variant-${book.id}`,
+                id: `gid://shopify/ProductVariant/db-${book.id}`,
                 title: "Default",
                 price: { amount: String(book.price), currencyCode: "BRL" },
                 availableForSale: book.in_stock ?? true,
@@ -73,7 +76,7 @@ const BookCard = ({ book }: { book: Book }) => {
           options: [],
         },
       },
-      variantId: `gid://shopify/ProductVariant/${book.id}`,
+      variantId: `gid://shopify/ProductVariant/db-${book.id}`,
       variantTitle: "Default",
       price: { amount: String(book.price), currencyCode: "BRL" },
       quantity: 1,
@@ -111,12 +114,14 @@ const BookCard = ({ book }: { book: Book }) => {
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <BookOpen className="h-16 w-16 text-muted-foreground" />
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
+            <div className="text-center p-4">
+              <BookOpen className="h-12 w-12 text-primary/50 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground font-medium line-clamp-2">{book.title}</p>
+            </div>
           </div>
         )}
         
-        {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-2">
           {book.featured && (
             <Badge className="bg-primary text-primary-foreground">Destaque</Badge>
@@ -128,7 +133,6 @@ const BookCard = ({ book }: { book: Book }) => {
           )}
         </div>
 
-        {/* Favorite button */}
         <button
           onClick={handleToggleFavorite}
           className="absolute top-3 right-3 p-2 rounded-full bg-background/80 hover:bg-background transition-colors"
@@ -138,7 +142,6 @@ const BookCard = ({ book }: { book: Book }) => {
           />
         </button>
 
-        {/* Add to cart overlay */}
         <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-background/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
           <Button onClick={handleAddToCart} className="w-full" size="sm">
             <ShoppingCart className="h-4 w-4 mr-2" />
@@ -174,18 +177,104 @@ const BookCard = ({ book }: { book: Book }) => {
   );
 };
 
+// Unified product interface
+interface UnifiedProduct {
+  id: string;
+  title: string;
+  author: string | null;
+  description: string | null;
+  price: number;
+  originalPrice: number | null;
+  category: string | null;
+  imageUrl: string | null;
+  handle: string;
+  inStock: boolean;
+  featured: boolean;
+  source: "database" | "shopify";
+  originalData: Book | ShopifyProduct;
+}
+
 const AllBooks = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { books, loading } = useBooks();
+  const { books: dbBooks, loading: dbLoading } = useBooks();
+  const [shopifyProducts, setShopifyProducts] = useState<ShopifyProduct[]>([]);
+  const [shopifyLoading, setShopifyLoading] = useState(true);
   const [sortBy, setSortBy] = useState<string>("newest");
   
-  // Get category and search from URL params
   const urlCategory = searchParams.get("categoria") || "all";
   const urlSearch = searchParams.get("busca") || "";
   const [filterCategory, setFilterCategory] = useState<string>(urlCategory);
   const [searchQuery, setSearchQuery] = useState<string>(urlSearch);
 
-  // Update URL when filter changes
+  // Load Shopify products
+  useEffect(() => {
+    const loadShopifyProducts = async () => {
+      try {
+        setShopifyLoading(true);
+        const data = await fetchProducts(100);
+        setShopifyProducts(data);
+      } catch (err) {
+        console.error("Error fetching Shopify products:", err);
+      } finally {
+        setShopifyLoading(false);
+      }
+    };
+    loadShopifyProducts();
+  }, []);
+
+  // Combine and deduplicate products
+  const unifiedProducts = useMemo(() => {
+    const products: UnifiedProduct[] = [];
+    const seenHandles = new Set<string>();
+
+    // Add Shopify products first (they have checkout capability)
+    shopifyProducts.forEach((sp) => {
+      const handle = sp.node.handle;
+      if (!seenHandles.has(handle)) {
+        seenHandles.add(handle);
+        products.push({
+          id: sp.node.id,
+          title: sp.node.title,
+          author: null, // Shopify uses vendor for author
+          description: sp.node.description,
+          price: parseFloat(sp.node.priceRange.minVariantPrice.amount),
+          originalPrice: null,
+          category: null, // Would need to parse from tags/type
+          imageUrl: sp.node.images.edges[0]?.node.url || null,
+          handle,
+          inStock: sp.node.variants.edges.some(v => v.node.availableForSale),
+          featured: false,
+          source: "shopify",
+          originalData: sp,
+        });
+      }
+    });
+
+    // Add database books (may have more metadata)
+    dbBooks.forEach((book) => {
+      if (!seenHandles.has(book.handle)) {
+        seenHandles.add(book.handle);
+        products.push({
+          id: book.id,
+          title: book.title,
+          author: book.author,
+          description: book.description,
+          price: book.price,
+          originalPrice: book.original_price,
+          category: book.category,
+          imageUrl: book.image_url,
+          handle: book.handle,
+          inStock: book.in_stock ?? true,
+          featured: book.featured ?? false,
+          source: "database",
+          originalData: book,
+        });
+      }
+    });
+
+    return products;
+  }, [dbBooks, shopifyProducts]);
+
   const handleCategoryChange = (value: string) => {
     setFilterCategory(value);
     const newParams = new URLSearchParams(searchParams);
@@ -214,27 +303,31 @@ const AllBooks = () => {
     setSearchParams(new URLSearchParams());
   };
 
-  const filteredBooks = useMemo(() => {
-    let result = [...books];
+  const filteredProducts = useMemo(() => {
+    let result = [...unifiedProducts];
 
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      result = result.filter((book) => {
-        const title = book.title.toLowerCase();
-        const author = book.author?.toLowerCase() || "";
-        const description = book.description?.toLowerCase() || "";
+      result = result.filter((product) => {
+        const title = product.title.toLowerCase();
+        const author = product.author?.toLowerCase() || "";
+        const description = product.description?.toLowerCase() || "";
         return title.includes(query) || author.includes(query) || description.includes(query);
       });
     }
 
     // Filter by category
     if (filterCategory !== "all") {
-      result = result.filter((book) => book.category === filterCategory);
+      result = result.filter((product) => {
+        const category = product.category?.toLowerCase() || "";
+        const filterLower = filterCategory.toLowerCase();
+        return category.includes(filterLower) || product.title.toLowerCase().includes(filterLower);
+      });
     }
 
     // Filter only in-stock
-    result = result.filter((book) => book.in_stock !== false);
+    result = result.filter((product) => product.inStock);
 
     // Sort
     switch (sortBy) {
@@ -249,12 +342,18 @@ const AllBooks = () => {
         break;
       case "newest":
       default:
-        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        // Featured first, then by title
+        result.sort((a, b) => {
+          if (a.featured !== b.featured) return b.featured ? 1 : -1;
+          return a.title.localeCompare(b.title);
+        });
         break;
     }
 
     return result;
-  }, [books, sortBy, filterCategory, searchQuery]);
+  }, [unifiedProducts, sortBy, filterCategory, searchQuery]);
+
+  const loading = dbLoading || shopifyLoading;
 
   return (
     <>
@@ -269,7 +368,6 @@ const AllBooks = () => {
       <Header />
 
       <main className="min-h-screen pt-24">
-        {/* Hero Section */}
         <section className="bg-gradient-to-b from-primary/10 to-background py-16">
           <div className="container">
             <div className="text-center max-w-2xl mx-auto">
@@ -283,11 +381,9 @@ const AllBooks = () => {
           </div>
         </section>
 
-        {/* Filters */}
         <section className="py-8 border-b">
           <div className="container">
             <div className="flex flex-col gap-4">
-              {/* Search Bar */}
               <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -311,7 +407,7 @@ const AllBooks = () => {
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Filter className="h-4 w-4" />
                   <span className="text-sm">
-                    {filteredBooks.length} livros encontrados
+                    {filteredProducts.length} livros encontrados
                     {searchQuery && ` para "${searchQuery}"`}
                   </span>
                 </div>
@@ -347,14 +443,13 @@ const AllBooks = () => {
           </div>
         </section>
 
-        {/* Products Grid */}
         <section className="py-12 md:py-16">
           <div className="container">
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : filteredBooks.length === 0 ? (
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-20 bg-card rounded-2xl">
                 <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-serif text-2xl font-semibold text-foreground mb-2">
@@ -369,8 +464,19 @@ const AllBooks = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-                {filteredBooks.map((book) => (
-                  <BookCard key={book.id} book={book} />
+                {filteredProducts.map((product, index) => (
+                  product.source === "shopify" ? (
+                    <ProductCard 
+                      key={product.id} 
+                      product={product.originalData as ShopifyProduct} 
+                      index={index} 
+                    />
+                  ) : (
+                    <DatabaseBookCard 
+                      key={product.id} 
+                      book={product.originalData as Book} 
+                    />
+                  )
                 ))}
               </div>
             )}
