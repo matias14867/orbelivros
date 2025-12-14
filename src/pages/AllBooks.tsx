@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
-import { useSearchParams } from "react-router-dom";
-import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
-import { ProductCard } from "@/components/ProductCard";
+import { useSearchParams, Link } from "react-router-dom";
+import { useBooks, Book } from "@/hooks/useBooks";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Loader2, BookOpen, Filter, Search, X } from "lucide-react";
+import { Loader2, BookOpen, Filter, Search, X, ShoppingCart, Heart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -15,13 +15,168 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCartStore } from "@/stores/cartStore";
+import { useFavorites } from "@/hooks/useFavorites";
+import { toast } from "sonner";
+
+const CATEGORIES = [
+  { value: "all", label: "Todas as Categorias" },
+  { value: "Romance", label: "Romance" },
+  { value: "Autoajuda", label: "Autoajuda" },
+  { value: "Ficção", label: "Ficção" },
+  { value: "Poesia", label: "Poesia" },
+  { value: "Clássicos", label: "Clássicos" },
+  { value: "Drama", label: "Drama" },
+  { value: "Fantasia", label: "Fantasia" },
+  { value: "Distopia", label: "Distopia" },
+  { value: "Literatura Brasileira", label: "Literatura Brasileira" },
+  { value: "Infantojuvenil", label: "Infantojuvenil" },
+  { value: "Tragédia", label: "Tragédia" },
+];
+
+const BookCard = ({ book }: { book: Book }) => {
+  const addItem = useCartStore((state) => state.addItem);
+  const { toggleFavorite, isFavorite } = useFavorites();
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Create a compatible product structure for the cart
+    const cartItem = {
+      product: {
+        node: {
+          id: book.id,
+          title: book.title,
+          description: book.description || "",
+          handle: book.handle,
+          priceRange: {
+            minVariantPrice: {
+              amount: String(book.price),
+              currencyCode: "BRL",
+            },
+          },
+          images: {
+            edges: book.image_url ? [{ node: { url: book.image_url, altText: book.title } }] : [],
+          },
+          variants: {
+            edges: [{
+              node: {
+                id: `variant-${book.id}`,
+                title: "Default",
+                price: { amount: String(book.price), currencyCode: "BRL" },
+                availableForSale: book.in_stock ?? true,
+                selectedOptions: [],
+              }
+            }],
+          },
+          options: [],
+        },
+      },
+      variantId: `gid://shopify/ProductVariant/${book.id}`,
+      variantTitle: "Default",
+      price: { amount: String(book.price), currencyCode: "BRL" },
+      quantity: 1,
+      selectedOptions: [],
+    };
+    
+    addItem(cartItem);
+    toast.success("Adicionado ao carrinho!");
+  };
+
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await toggleFavorite({
+      handle: book.handle,
+      title: book.title,
+      image: book.image_url || undefined,
+      price: book.price,
+    });
+  };
+
+  const isBookFavorite = isFavorite(book.handle);
+
+  return (
+    <Link
+      to={`/produto/${book.handle}`}
+      className="group bg-card rounded-2xl shadow-card overflow-hidden hover-lift animate-fade-up"
+    >
+      <div className="aspect-[3/4] relative overflow-hidden bg-muted">
+        {book.image_url ? (
+          <img
+            src={book.image_url}
+            alt={book.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <BookOpen className="h-16 w-16 text-muted-foreground" />
+          </div>
+        )}
+        
+        {/* Badges */}
+        <div className="absolute top-3 left-3 flex flex-col gap-2">
+          {book.featured && (
+            <Badge className="bg-primary text-primary-foreground">Destaque</Badge>
+          )}
+          {book.original_price && book.original_price > book.price && (
+            <Badge variant="destructive">
+              -{Math.round(((book.original_price - book.price) / book.original_price) * 100)}%
+            </Badge>
+          )}
+        </div>
+
+        {/* Favorite button */}
+        <button
+          onClick={handleToggleFavorite}
+          className="absolute top-3 right-3 p-2 rounded-full bg-background/80 hover:bg-background transition-colors"
+        >
+          <Heart
+            className={`h-4 w-4 ${isBookFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`}
+          />
+        </button>
+
+        {/* Add to cart overlay */}
+        <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-background/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button onClick={handleAddToCart} className="w-full" size="sm">
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            Adicionar
+          </Button>
+        </div>
+      </div>
+
+      <div className="p-4">
+        {book.category && (
+          <span className="text-xs text-primary font-medium uppercase tracking-wide">
+            {book.category}
+          </span>
+        )}
+        <h3 className="font-serif font-semibold text-foreground mt-1 line-clamp-2 group-hover:text-primary transition-colors">
+          {book.title}
+        </h3>
+        {book.author && (
+          <p className="text-sm text-muted-foreground mt-1">{book.author}</p>
+        )}
+        <div className="flex items-center gap-2 mt-3">
+          <span className="text-lg font-bold text-primary">
+            R$ {book.price.toFixed(2).replace(".", ",")}
+          </span>
+          {book.original_price && book.original_price > book.price && (
+            <span className="text-sm text-muted-foreground line-through">
+              R$ {book.original_price.toFixed(2).replace(".", ",")}
+            </span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+};
 
 const AllBooks = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [products, setProducts] = useState<ShopifyProduct[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<ShopifyProduct[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { books, loading } = useBooks();
   const [sortBy, setSortBy] = useState<string>("newest");
   
   // Get category and search from URL params
@@ -30,34 +185,27 @@ const AllBooks = () => {
   const [filterCategory, setFilterCategory] = useState<string>(urlCategory);
   const [searchQuery, setSearchQuery] = useState<string>(urlSearch);
 
-  // Update filter when URL changes
-  useEffect(() => {
-    const categoryFromUrl = searchParams.get("categoria") || "all";
-    const searchFromUrl = searchParams.get("busca") || "";
-    setFilterCategory(categoryFromUrl.toLowerCase());
-    setSearchQuery(searchFromUrl);
-  }, [searchParams]);
-
-  // Update URL when filter changes manually
+  // Update URL when filter changes
   const handleCategoryChange = (value: string) => {
     setFilterCategory(value);
+    const newParams = new URLSearchParams(searchParams);
     if (value === "all") {
-      searchParams.delete("categoria");
+      newParams.delete("categoria");
     } else {
-      searchParams.set("categoria", value);
+      newParams.set("categoria", value);
     }
-    setSearchParams(searchParams);
+    setSearchParams(newParams);
   };
 
-  // Handle search query change
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
+    const newParams = new URLSearchParams(searchParams);
     if (value.trim()) {
-      searchParams.set("busca", value);
+      newParams.set("busca", value);
     } else {
-      searchParams.delete("busca");
+      newParams.delete("busca");
     }
-    setSearchParams(searchParams);
+    setSearchParams(newParams);
   };
 
   const clearFilters = () => {
@@ -66,90 +214,55 @@ const AllBooks = () => {
     setSearchParams(new URLSearchParams());
   };
 
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchProducts(100);
-        setProducts(data);
-        setFilteredProducts(data);
-      } catch (err) {
-        console.error("Error fetching products:", err);
-        setError("Erro ao carregar produtos");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProducts();
-  }, []);
-
-  useEffect(() => {
-    let result = [...products];
+  const filteredBooks = useMemo(() => {
+    let result = [...books];
 
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      result = result.filter((product) => {
-        const title = product.node.title?.toLowerCase() || "";
-        const description = product.node.description?.toLowerCase() || "";
-        return title.includes(query) || description.includes(query);
+      result = result.filter((book) => {
+        const title = book.title.toLowerCase();
+        const author = book.author?.toLowerCase() || "";
+        const description = book.description?.toLowerCase() || "";
+        return title.includes(query) || author.includes(query) || description.includes(query);
       });
     }
 
     // Filter by category
     if (filterCategory !== "all") {
-      result = result.filter((product) => {
-        const tags = product.node.description?.toLowerCase() || "";
-        const title = product.node.title?.toLowerCase() || "";
-        return tags.includes(filterCategory) || title.includes(filterCategory);
-      });
+      result = result.filter((book) => book.category === filterCategory);
     }
+
+    // Filter only in-stock
+    result = result.filter((book) => book.in_stock !== false);
 
     // Sort
     switch (sortBy) {
       case "price-asc":
-        result.sort(
-          (a, b) =>
-            parseFloat(a.node.priceRange.minVariantPrice.amount) -
-            parseFloat(b.node.priceRange.minVariantPrice.amount)
-        );
+        result.sort((a, b) => a.price - b.price);
         break;
       case "price-desc":
-        result.sort(
-          (a, b) =>
-            parseFloat(b.node.priceRange.minVariantPrice.amount) -
-            parseFloat(a.node.priceRange.minVariantPrice.amount)
-        );
+        result.sort((a, b) => b.price - a.price);
         break;
       case "name":
-        result.sort((a, b) => a.node.title.localeCompare(b.node.title));
+        result.sort((a, b) => a.title.localeCompare(b.title));
         break;
+      case "newest":
       default:
+        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         break;
     }
 
-    setFilteredProducts(result);
-  }, [products, sortBy, filterCategory, searchQuery]);
-
-  const categories = [
-    { value: "all", label: "Todas as Categorias" },
-    { value: "romance", label: "Romance" },
-    { value: "autoajuda", label: "Autoajuda" },
-    { value: "poesia", label: "Poesia" },
-    { value: "clássicos", label: "Clássicos" },
-    { value: "ficção", label: "Ficção" },
-    { value: "drama", label: "Drama" },
-    { value: "suspense", label: "Suspense" },
-  ];
+    return result;
+  }, [books, sortBy, filterCategory, searchQuery]);
 
   return (
     <>
       <Helmet>
-        <title>Todos os Livros | Livraria Encanto</title>
+        <title>Todos os Livros | Orbe Livros</title>
         <meta
           name="description"
-          content="Explore nossa coleção completa de livros. Romances, suspenses, clássicos e muito mais para você se apaixonar."
+          content="Explore nossa coleção completa de livros. Romances, clássicos, fantasia, autoajuda e muito mais para você se apaixonar."
         />
       </Helmet>
 
@@ -198,7 +311,7 @@ const AllBooks = () => {
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Filter className="h-4 w-4" />
                   <span className="text-sm">
-                    {filteredProducts.length} livros encontrados
+                    {filteredBooks.length} livros encontrados
                     {searchQuery && ` para "${searchQuery}"`}
                   </span>
                 </div>
@@ -209,7 +322,7 @@ const AllBooks = () => {
                       <SelectValue placeholder="Categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((cat) => (
+                      {CATEGORIES.map((cat) => (
                         <SelectItem key={cat.value} value={cat.value}>
                           {cat.label}
                         </SelectItem>
@@ -241,11 +354,7 @@ const AllBooks = () => {
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : error ? (
-              <div className="text-center py-20">
-                <p className="text-destructive">{error}</p>
-              </div>
-            ) : filteredProducts.length === 0 ? (
+            ) : filteredBooks.length === 0 ? (
               <div className="text-center py-20 bg-card rounded-2xl">
                 <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-serif text-2xl font-semibold text-foreground mb-2">
@@ -260,8 +369,8 @@ const AllBooks = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-                {filteredProducts.map((product, index) => (
-                  <ProductCard key={product.node.id} product={product} index={index} />
+                {filteredBooks.map((book) => (
+                  <BookCard key={book.id} book={book} />
                 ))}
               </div>
             )}

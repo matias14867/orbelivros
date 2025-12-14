@@ -31,7 +31,7 @@ const Header = () => {
   const navLinks = [
     { name: "Início", href: "/" },
     { name: "Todos os Livros", href: "/livros" },
-    { name: "Categorias", href: "/#categorias" },
+    { name: "Categorias", href: "/categorias" },
     { name: "Destaques", href: "/destaques" },
     { name: "Contato", href: "/contato" },
   ];
