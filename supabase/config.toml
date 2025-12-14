@@ -1,1 +1,7 @@
 project_id = "meprfpbhzkijctzhvvvb"
+
+[functions.delete-user-account]
+verify_jwt = true
+
+[functions.get-bestsellers]
+verify_jwt = false

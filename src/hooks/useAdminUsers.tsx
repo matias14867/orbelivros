@@ -51,29 +51,17 @@ export function useAdminUsers() {
   }, [fetchUsers]);
 
   const deleteUser = async (userId: string) => {
-    // Delete profile - the user will remain in auth but profile/favorites/history will be deleted
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('user_id', userId);
+    try {
+      const { error } = await supabase.functions.invoke("delete-user-account", {
+        body: { userId },
+      });
 
-    if (profileError) throw profileError;
-
-    // Delete user roles
-    const { error: rolesError } = await supabase
-      .from('user_roles')
-      .delete()
-      .eq('user_id', userId);
-
-    if (rolesError) throw rolesError;
-
-    // Delete favorites
-    await supabase.from('favorites').delete().eq('user_id', userId);
-
-    // Delete purchase history
-    await supabase.from('purchase_history').delete().eq('user_id', userId);
-
-    await fetchUsers();
+      if (error) throw error;
+      await fetchUsers();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      throw error;
+    }
   };
 
   return {

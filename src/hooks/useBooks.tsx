@@ -106,27 +106,14 @@ export function useBestsellers() {
   useEffect(() => {
     const fetchBestsellers = async () => {
       try {
-        const { data, error } = await supabase
-          .from('purchase_history')
-          .select('product_handle, quantity');
+        const { data, error } = await supabase.functions.invoke<
+          { handle: string; total_sold: number }[]
+        >("get-bestsellers");
 
         if (error) throw error;
-
-        // Aggregate sales by product handle
-        const salesMap = new Map<string, number>();
-        data?.forEach((purchase) => {
-          const current = salesMap.get(purchase.product_handle) || 0;
-          salesMap.set(purchase.product_handle, current + purchase.quantity);
-        });
-
-        // Convert to array and sort
-        const sorted = Array.from(salesMap.entries())
-          .map(([handle, total_sold]) => ({ handle, total_sold }))
-          .sort((a, b) => b.total_sold - a.total_sold);
-
-        setBestsellers(sorted);
+        setBestsellers(data || []);
       } catch (error) {
-        console.error('Error fetching bestsellers:', error);
+        console.error("Error fetching bestsellers:", error);
       } finally {
         setLoading(false);
       }
