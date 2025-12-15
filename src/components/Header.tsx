@@ -6,6 +6,7 @@ import { CartDrawer } from "./CartDrawer";
 import { SearchBar } from "./SearchBar";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useSiteImages } from "@/hooks/useSiteImages";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -20,6 +21,8 @@ const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { isAdmin } = useUserRole();
+  const { getImage } = useSiteImages();
+  const logo = getImage("logo");
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -43,9 +46,13 @@ const Header = () => {
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <span className="font-serif text-2xl md:text-3xl font-semibold text-foreground">
-                Orbe <span className="text-primary">Livros</span>
-              </span>
+              {logo ? (
+                <img src={logo} alt="Logo da Loja" className="h-10 md:h-12 w-auto" />
+              ) : (
+                <span className="font-serif text-2xl md:text-3xl font-semibold text-foreground">
+                  Orbe <span className="text-primary">Livros</span>
+                </span>
+              )}
             </Link>
 
             {/* Desktop Navigation */}
