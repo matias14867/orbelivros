@@ -35,6 +35,7 @@ import {
   User,
   Mail,
   TestTube,
+  Phone,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -85,6 +86,40 @@ const Admin = () => {
     heroTitle: "Descubra seu próximo livro favorito",
     heroSubtitle: "Curadoria especial para mulheres que amam ler",
   });
+
+  // Contact info state
+  const [contactInfo, setContactInfo] = useState({
+    phone: "(11) 99999-9999",
+    email: "contato@orbelivros.com.br",
+    address: "São Paulo, Brasil",
+    instagram: "",
+    facebook: "",
+    twitter: "",
+    youtube: "",
+  });
+
+  // Load settings from database
+  useEffect(() => {
+    if (settings.contact) {
+      setContactInfo({
+        phone: settings.contact.phone || "(11) 99999-9999",
+        email: settings.contact.email || "contato@orbelivros.com.br",
+        address: settings.contact.address || "São Paulo, Brasil",
+        instagram: settings.contact.instagram || "",
+        facebook: settings.contact.facebook || "",
+        twitter: settings.contact.twitter || "",
+        youtube: settings.contact.youtube || "",
+      });
+    }
+    if (settings.theme) {
+      setSiteSettings({
+        primaryColor: settings.theme.primaryColor || "#d4a5a5",
+        storeName: settings.theme.storeName || "Orbe Livros",
+        heroTitle: settings.theme.heroTitle || "Descubra seu próximo livro favorito",
+        heroSubtitle: settings.theme.heroSubtitle || "Curadoria especial para mulheres que amam ler",
+      });
+    }
+  }, [settings]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -214,9 +249,18 @@ const Admin = () => {
   const handleSaveSettings = async () => {
     try {
       await updateSetting("theme", siteSettings);
-      toast.success("Configurações salvas!");
+      toast.success("Configurações de aparência salvas!");
     } catch (error) {
       toast.error("Erro ao salvar configurações");
+    }
+  };
+
+  const handleSaveContactInfo = async () => {
+    try {
+      await updateSetting("contact", contactInfo);
+      toast.success("Informações de contato salvas!");
+    } catch (error) {
+      toast.error("Erro ao salvar informações de contato");
     }
   };
 
@@ -577,6 +621,94 @@ const Admin = () => {
 
             {/* Settings Tab */}
             <TabsContent value="settings" className="space-y-6">
+              {/* Contact Info Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-serif flex items-center gap-2">
+                    <Phone className="h-5 w-5" />
+                    Informações de Contato
+                  </CardTitle>
+                  <CardDescription>Configure telefone, email, endereço e redes sociais exibidos no site</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Telefone</Label>
+                      <Input
+                        id="phone"
+                        value={contactInfo.phone}
+                        onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
+                        placeholder="(11) 99999-9999"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={contactInfo.email}
+                        onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
+                        placeholder="contato@exemplo.com.br"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Endereço / Localização</Label>
+                    <Input
+                      id="address"
+                      value={contactInfo.address}
+                      onChange={(e) => setContactInfo({ ...contactInfo, address: e.target.value })}
+                      placeholder="São Paulo, Brasil"
+                    />
+                  </div>
+                  <div className="border-t pt-4 mt-4">
+                    <h4 className="font-medium mb-3">Redes Sociais</h4>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram">Instagram</Label>
+                        <Input
+                          id="instagram"
+                          value={contactInfo.instagram}
+                          onChange={(e) => setContactInfo({ ...contactInfo, instagram: e.target.value })}
+                          placeholder="https://instagram.com/..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="facebook">Facebook</Label>
+                        <Input
+                          id="facebook"
+                          value={contactInfo.facebook}
+                          onChange={(e) => setContactInfo({ ...contactInfo, facebook: e.target.value })}
+                          placeholder="https://facebook.com/..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="twitter">Twitter / X</Label>
+                        <Input
+                          id="twitter"
+                          value={contactInfo.twitter}
+                          onChange={(e) => setContactInfo({ ...contactInfo, twitter: e.target.value })}
+                          placeholder="https://twitter.com/..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="youtube">YouTube</Label>
+                        <Input
+                          id="youtube"
+                          value={contactInfo.youtube}
+                          onChange={(e) => setContactInfo({ ...contactInfo, youtube: e.target.value })}
+                          placeholder="https://youtube.com/..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <Button onClick={handleSaveContactInfo}>
+                    Salvar Informações de Contato
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Appearance Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="font-serif flex items-center gap-2">
@@ -630,7 +762,7 @@ const Admin = () => {
                     />
                   </div>
                   <Button onClick={handleSaveSettings}>
-                    Salvar Configurações
+                    Salvar Aparência
                   </Button>
                 </CardContent>
               </Card>

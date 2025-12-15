@@ -1,8 +1,15 @@
 import { Link } from "react-router-dom";
 import { Instagram, Facebook, Twitter, Youtube, MapPin, Phone, Mail } from "lucide-react";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const { settings } = useSiteSettings();
+
+  const contactInfo = settings.contact || {};
+  const phone = contactInfo.phone || "(11) 99999-9999";
+  const email = contactInfo.email || "contato@orbelivros.com.br";
+  const address = contactInfo.address || "São Paulo, Brasil";
 
   const links = {
     shop: [
@@ -28,11 +35,15 @@ const Footer = () => {
   };
 
   const socials = [
-    { icon: Instagram, href: "#", label: "Instagram" },
-    { icon: Facebook, href: "#", label: "Facebook" },
-    { icon: Twitter, href: "#", label: "Twitter" },
-    { icon: Youtube, href: "#", label: "Youtube" },
+    { icon: Instagram, href: contactInfo.instagram || "#", label: "Instagram", enabled: !!contactInfo.instagram },
+    { icon: Facebook, href: contactInfo.facebook || "#", label: "Facebook", enabled: !!contactInfo.facebook },
+    { icon: Twitter, href: contactInfo.twitter || "#", label: "Twitter", enabled: !!contactInfo.twitter },
+    { icon: Youtube, href: contactInfo.youtube || "#", label: "Youtube", enabled: !!contactInfo.youtube },
   ];
+
+  // Show all icons if none configured, otherwise only show configured ones
+  const hasAnySocial = socials.some(s => s.enabled);
+  const displayedSocials = hasAnySocial ? socials.filter(s => s.enabled) : socials;
 
   return (
     <footer className="bg-card border-t border-border">
@@ -50,10 +61,12 @@ const Footer = () => {
               mulheres que amam ler e se inspirar.
             </p>
             <div className="flex gap-3">
-              {socials.map((social) => (
+              {displayedSocials.map((social) => (
                 <a
                   key={social.label}
                   href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={social.label}
                   className="w-10 h-10 bg-muted rounded-full flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors duration-300"
                 >
@@ -125,16 +138,16 @@ const Footer = () => {
             <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
               <span className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-primary" />
-                São Paulo, Brasil
+                {address}
               </span>
-              <span className="flex items-center gap-2">
+              <a href={`tel:${phone.replace(/\D/g, '')}`} className="flex items-center gap-2 hover:text-primary transition-colors">
                 <Phone className="h-4 w-4 text-primary" />
-                (11) 99999-9999
-              </span>
-              <span className="flex items-center gap-2">
+                {phone}
+              </a>
+              <a href={`mailto:${email}`} className="flex items-center gap-2 hover:text-primary transition-colors">
                 <Mail className="h-4 w-4 text-primary" />
-                contato@orbelivros.com.br
-              </span>
+                {email}
+              </a>
             </div>
           </div>
         </div>
