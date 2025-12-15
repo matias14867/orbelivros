@@ -1,13 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
-import heroImage from "@/assets/hero-books.jpg";
+import heroImageDefault from "@/assets/hero-books.jpg";
 import { useNavigate } from "react-router-dom";
 import { useSiteTexts } from "@/hooks/useSiteTexts";
+import { useSiteImages } from "@/hooks/useSiteImages";
 
 const Hero = () => {
   const navigate = useNavigate();
   const { getSection } = useSiteTexts();
   const texts = getSection("hero");
+  const { getImage } = useSiteImages();
+  const heroImage = getImage("heroImage") || heroImageDefault;
   
   return (
     <section className="relative min-h-screen flex items-center pt-20">

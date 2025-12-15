@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteTextsEditor } from "@/components/admin/SiteTextsEditor";
+import { SiteImagesEditor } from "@/components/admin/SiteImagesEditor";
 import {
   Loader2,
   BookOpen,
@@ -38,6 +39,7 @@ import {
   TestTube,
   Phone,
   Type,
+  Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -399,7 +401,7 @@ const Admin = () => {
           </div>
 
           <Tabs defaultValue="books" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
               <TabsTrigger value="books" className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
                 <span className="hidden sm:inline">Livros</span>
@@ -415,6 +417,10 @@ const Admin = () => {
               <TabsTrigger value="texts" className="flex items-center gap-2">
                 <Type className="h-4 w-4" />
                 <span className="hidden sm:inline">Textos</span>
+              </TabsTrigger>
+              <TabsTrigger value="images" className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Imagens</span>
               </TabsTrigger>
               <TabsTrigger value="settings" className="flex items-center gap-2">
                 <Palette className="h-4 w-4" />
@@ -628,6 +634,11 @@ const Admin = () => {
             {/* Texts Tab */}
             <TabsContent value="texts">
               <SiteTextsEditor />
+            </TabsContent>
+
+            {/* Images Tab */}
+            <TabsContent value="images">
+              <SiteImagesEditor />
             </TabsContent>
 
             {/* Settings Tab */}
