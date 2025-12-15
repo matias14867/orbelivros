@@ -35,6 +35,27 @@ export function useSiteSettings() {
 
   useEffect(() => {
     fetchSettings();
+
+    // Subscribe to realtime changes for instant updates
+    const channel = supabase
+      .channel('site-settings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'site_settings'
+        },
+        () => {
+          // Refetch settings when any change happens
+          fetchSettings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchSettings]);
 
   const updateSetting = async (key: string, value: Record<string, any>) => {
@@ -57,7 +78,7 @@ export function useSiteSettings() {
       if (error) throw error;
     }
     
-    await fetchSettings();
+    // Local update happens via realtime subscription
   };
 
   return {
