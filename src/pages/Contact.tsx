@@ -22,7 +22,11 @@ const contactSchema = z.object({
   name: z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
   email: z.string().trim().email("Email inválido").max(255, "Email muito longo"),
   subject: z.string().min(1, "Selecione um assunto"),
-  message: z.string().trim().min(10, "Mensagem deve ter pelo menos 10 caracteres").max(MAX_MESSAGE_LENGTH, `Mensagem deve ter no máximo ${MAX_MESSAGE_LENGTH} caracteres`),
+  message: z
+    .string()
+    .trim()
+    .min(10, "Mensagem deve ter pelo menos 10 caracteres")
+    .max(MAX_MESSAGE_LENGTH, `Mensagem deve ter no máximo ${MAX_MESSAGE_LENGTH} caracteres`),
 });
 
 const Contact = () => {
@@ -40,14 +44,14 @@ const Contact = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const contactSettings = settings.contact || {};
-  const phoneValue = contactSettings.phone || "(11) 99999-9999";
+  const phoneValue = contactSettings.phone || "(67) 99961-7265";
   const emailValue = contactSettings.email || "contato@orbelivros.com.br";
-  const addressValue = contactSettings.address || "São Paulo, SP";
+  const addressValue = contactSettings.address || "Campo Grande, MS";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
-    
+
     const result = contactSchema.safeParse(formData);
     if (!result.success) {
       const newErrors: Record<string, string> = {};
@@ -61,7 +65,7 @@ const Contact = () => {
     }
 
     setLoading(true);
-    
+
     try {
       const { error } = await supabase.from("contacts").insert({
         name: formData.name,
@@ -72,11 +76,11 @@ const Contact = () => {
       });
 
       if (error) throw error;
-      
+
       toast.success("Mensagem enviada com sucesso!", {
         description: "Responderemos em até 24 horas úteis.",
       });
-      
+
       setFormData({ name: "", email: "", subject: "", message: "" });
     } catch (error) {
       toast.error("Erro ao enviar mensagem. Tente novamente.");
@@ -125,12 +129,8 @@ const Contact = () => {
               <MessageSquare className="h-4 w-4" />
               {texts.badge}
             </span>
-            <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-4">
-              {texts.title}
-            </h1>
-            <p className="text-muted-foreground">
-              {texts.subtitle}
-            </p>
+            <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-4">{texts.title}</h1>
+            <p className="text-muted-foreground">{texts.subtitle}</p>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -156,9 +156,7 @@ const Contact = () => {
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="font-serif">{texts.formTitle}</CardTitle>
-                <CardDescription>
-                  {texts.formSubtitle}
-                </CardDescription>
+                <CardDescription>{texts.formSubtitle}</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -214,7 +212,9 @@ const Contact = () => {
                   <div className="space-y-2">
                     <Label htmlFor="message">
                       Mensagem
-                      <span className={`ml-2 text-xs ${remainingChars < 100 ? "text-destructive" : "text-muted-foreground"}`}>
+                      <span
+                        className={`ml-2 text-xs ${remainingChars < 100 ? "text-destructive" : "text-muted-foreground"}`}
+                      >
                         ({remainingChars} caracteres restantes)
                       </span>
                     </Label>
