@@ -13,6 +13,8 @@ import { MessageSquare, Mail, Phone, MapPin, Send, Loader2 } from "lucide-react"
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useSiteTexts } from "@/hooks/useSiteTexts";
 
 const MAX_MESSAGE_LENGTH = 1000;
 
@@ -25,6 +27,9 @@ const contactSchema = z.object({
 
 const Contact = () => {
   const { user } = useAuth();
+  const { settings } = useSiteSettings();
+  const { getSection } = useSiteTexts();
+  const texts = getSection("contact");
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -33,6 +38,11 @@ const Contact = () => {
     message: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const contactSettings = settings.contact || {};
+  const phoneValue = contactSettings.phone || "(11) 99999-9999";
+  const emailValue = contactSettings.email || "contato@orbelivros.com.br";
+  const addressValue = contactSettings.address || "São Paulo, SP";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,20 +88,20 @@ const Contact = () => {
   const contactInfo = [
     {
       icon: Mail,
-      title: "E-mail",
-      value: "contato@orbelivros.com.br",
-      description: "Resposta em até 24h",
+      title: texts.emailLabel,
+      value: emailValue,
+      description: texts.emailDesc,
     },
     {
       icon: Phone,
-      title: "Telefone",
-      value: "(11) 99999-9999",
-      description: "Seg a Sex, 9h às 18h",
+      title: texts.phoneLabel,
+      value: phoneValue,
+      description: texts.phoneDesc,
     },
     {
       icon: MapPin,
-      title: "Endereço",
-      value: "São Paulo, SP",
+      title: texts.addressLabel,
+      value: addressValue,
       description: "Brasil",
     },
   ];
@@ -113,14 +123,13 @@ const Contact = () => {
           <div className="text-center max-w-2xl mx-auto mb-12">
             <span className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
               <MessageSquare className="h-4 w-4" />
-              Fale Conosco
+              {texts.badge}
             </span>
             <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Estamos aqui para ajudar
+              {texts.title}
             </h1>
             <p className="text-muted-foreground">
-              Tem alguma dúvida, sugestão ou precisa de suporte? Entre em contato
-              conosco e responderemos o mais rápido possível.
+              {texts.subtitle}
             </p>
           </div>
 
@@ -146,9 +155,9 @@ const Contact = () => {
             {/* Contact Form */}
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="font-serif">Envie sua mensagem</CardTitle>
+                <CardTitle className="font-serif">{texts.formTitle}</CardTitle>
                 <CardDescription>
-                  Preencha o formulário abaixo e entraremos em contato
+                  {texts.formSubtitle}
                 </CardDescription>
               </CardHeader>
               <CardContent>

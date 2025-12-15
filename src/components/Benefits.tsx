@@ -1,52 +1,55 @@
 import { Truck, Shield, CreditCard, Gift, Clock, Headphones } from "lucide-react";
-
-const benefits = [
-  {
-    icon: Truck,
-    title: "Frete Grátis",
-    description: "Em compras acima de R$ 99 para todo o Brasil",
-  },
-  {
-    icon: Shield,
-    title: "Compra Segura",
-    description: "Seus dados protegidos com criptografia",
-  },
-  {
-    icon: CreditCard,
-    title: "Parcele em 12x",
-    description: "Sem juros no cartão de crédito",
-  },
-  {
-    icon: Gift,
-    title: "Embalagem Especial",
-    description: "Perfeita para presentear quem você ama",
-  },
-  {
-    icon: Clock,
-    title: "Entrega Rápida",
-    description: "Receba em até 7 dias úteis",
-  },
-  {
-    icon: Headphones,
-    title: "Suporte 24h",
-    description: "Atendimento personalizado sempre",
-  },
-];
+import { useSiteTexts } from "@/hooks/useSiteTexts";
 
 const Benefits = () => {
+  const { getSection } = useSiteTexts();
+  const texts = getSection("benefits");
+
+  const benefits = [
+    {
+      icon: Truck,
+      title: texts.benefit1Title,
+      description: texts.benefit1Desc,
+    },
+    {
+      icon: Shield,
+      title: texts.benefit2Title,
+      description: texts.benefit2Desc,
+    },
+    {
+      icon: CreditCard,
+      title: texts.benefit3Title,
+      description: texts.benefit3Desc,
+    },
+    {
+      icon: Gift,
+      title: texts.benefit4Title,
+      description: texts.benefit4Desc,
+    },
+    {
+      icon: Clock,
+      title: texts.benefit5Title,
+      description: texts.benefit5Desc,
+    },
+    {
+      icon: Headphones,
+      title: texts.benefit6Title,
+      description: texts.benefit6Desc,
+    },
+  ];
+
   return (
     <section id="beneficios" className="py-20 md:py-28 bg-rose-light/50">
       <div className="container">
         <div className="text-center mb-14">
           <span className="text-primary font-medium text-sm uppercase tracking-wider">
-            Por que escolher a gente?
+            {texts.sectionTag}
           </span>
           <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mt-2 mb-4">
-            Benefícios Exclusivos
+            {texts.sectionTitle}
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Oferecemos a melhor experiência de compra para você aproveitar cada
-            página
+            {texts.sectionSubtitle}
           </p>
         </div>
 

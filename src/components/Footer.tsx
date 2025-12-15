@@ -1,10 +1,13 @@
 import { Link } from "react-router-dom";
 import { Instagram, Facebook, Twitter, Youtube, MapPin, Phone, Mail } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useSiteTexts } from "@/hooks/useSiteTexts";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
   const { settings } = useSiteSettings();
+  const { getSection } = useSiteTexts();
+  const texts = getSection("footer");
 
   const contactInfo = settings.contact || {};
   const phone = contactInfo.phone || "(11) 99999-9999";
@@ -57,8 +60,7 @@ const Footer = () => {
               </span>
             </Link>
             <p className="text-muted-foreground mb-6 max-w-sm">
-              Sua livraria online favorita. Curadoria especial de livros para
-              mulheres que amam ler e se inspirar.
+              {texts.aboutText}
             </p>
             <div className="flex gap-3">
               {displayedSocials.map((social) => (
@@ -79,7 +81,7 @@ const Footer = () => {
           {/* Links */}
           <div>
             <h4 className="font-serif font-semibold text-foreground mb-4">
-              Loja
+              {texts.linksTitle}
             </h4>
             <ul className="space-y-3">
               {links.shop.map((link) => (
@@ -97,7 +99,7 @@ const Footer = () => {
 
           <div>
             <h4 className="font-serif font-semibold text-foreground mb-4">
-              Categorias
+              {texts.categoriesTitle}
             </h4>
             <ul className="space-y-3">
               {links.categories.map((link) => (
@@ -115,7 +117,7 @@ const Footer = () => {
 
           <div>
             <h4 className="font-serif font-semibold text-foreground mb-4">
-              Ajuda
+              {texts.contactTitle}
             </h4>
             <ul className="space-y-3">
               {links.help.map((link) => (
@@ -155,7 +157,7 @@ const Footer = () => {
         {/* Copyright */}
         <div className="border-t border-border mt-8 pt-8 text-center">
           <p className="text-muted-foreground text-sm">
-            © {currentYear} Orbe Livros. Todos os direitos reservados.
+            {texts.copyright.replace("{year}", String(currentYear))}
           </p>
         </div>
       </div>
