@@ -255,6 +255,84 @@ export type Database = {
         }
         Relationships: []
       }
+      promotion_books: {
+        Row: {
+          book_id: string
+          created_at: string
+          id: string
+          promotion_id: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          id?: string
+          promotion_id: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          id?: string
+          promotion_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_books_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_books_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_percentage: number
+          end_date: string | null
+          id: string
+          is_active: boolean
+          start_date: string | null
+          theme_color: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_percentage?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          start_date?: string | null
+          theme_color?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_percentage?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          start_date?: string | null
+          theme_color?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       purchase_history: {
         Row: {
           id: string

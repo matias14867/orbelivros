@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import PromotionBanner from "@/components/PromotionBanner";
 import { useBestsellers } from "@/hooks/useBooks";
 import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
@@ -99,6 +100,9 @@ const Bestsellers = () => {
               fazendo sucesso!
             </p>
           </div>
+
+          {/* Promotion Banner */}
+          <PromotionBanner />
 
           {isLoading ? (
             <div className="flex justify-center py-20">

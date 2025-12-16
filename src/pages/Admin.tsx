@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SiteTextsEditor } from "@/components/admin/SiteTextsEditor";
 import { SiteImagesEditor } from "@/components/admin/SiteImagesEditor";
 import CommentsManager from "@/components/admin/CommentsManager";
+import PromotionsManager from "@/components/admin/PromotionsManager";
 import {
   Loader2,
   BookOpen,
@@ -31,6 +32,7 @@ import {
   MessageSquare,
   MessageCircle,
   Palette,
+  Tag,
   Plus,
   Trash2,
   RefreshCw,
@@ -403,10 +405,14 @@ const Admin = () => {
           </div>
 
           <Tabs defaultValue="books" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-9 lg:w-auto lg:inline-grid">
               <TabsTrigger value="books" className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
                 <span className="hidden sm:inline">Livros</span>
+              </TabsTrigger>
+              <TabsTrigger value="promotions" className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                <span className="hidden sm:inline">Promoções</span>
               </TabsTrigger>
               <TabsTrigger value="comments" className="flex items-center gap-2">
                 <MessageCircle className="h-4 w-4" />
@@ -514,6 +520,11 @@ const Admin = () => {
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            {/* Promotions Tab */}
+            <TabsContent value="promotions">
+              <PromotionsManager />
             </TabsContent>
 
             {/* Comments Tab */}
