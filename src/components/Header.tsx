@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Heart, Search, User, LogOut, Shield } from "lucide-react";
+import { Menu, X, Heart, Search, User, LogOut, Shield, Crown } from "lucide-react";
 import { CartDrawer } from "./CartDrawer";
 import { SearchBar } from "./SearchBar";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useSubscriberRole } from "@/hooks/useSubscriberRole";
 import { useSiteImages } from "@/hooks/useSiteImages";
 import { toast } from "sonner";
 import {
@@ -21,6 +22,7 @@ const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { isAdmin } = useUserRole();
+  const { hasAccess: isSubscriberOrAdmin } = useSubscriberRole();
   const { getImage } = useSiteImages();
   const logo = getImage("logo");
   const navigate = useNavigate();
@@ -107,6 +109,12 @@ const Header = () => {
                       <DropdownMenuItem onClick={() => navigate("/admin")}>
                         <Shield className="h-4 w-4 mr-2" />
                         Painel Admin
+                      </DropdownMenuItem>
+                    )}
+                    {isSubscriberOrAdmin && (
+                      <DropdownMenuItem onClick={() => navigate("/assinantes")}>
+                        <Crown className="h-4 w-4 mr-2" />
+                        Painel Assinantes
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />

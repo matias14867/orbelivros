@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BookOpen, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const loginSchema = z.object({
   email: z.string().trim().email({ message: "Email inválido" }),
@@ -18,6 +19,14 @@ const loginSchema = z.object({
 const signUpSchema = loginSchema.extend({
   fullName: z.string().trim().min(2, { message: "Nome deve ter no mínimo 2 caracteres" }),
   confirmPassword: z.string(),
+  phone: z.string().trim().min(10, { message: "Telefone deve ter no mínimo 10 dígitos" }),
+  addressStreet: z.string().trim().min(3, { message: "Rua é obrigatória" }),
+  addressNumber: z.string().trim().min(1, { message: "Número é obrigatório" }),
+  addressComplement: z.string().optional(),
+  addressNeighborhood: z.string().trim().min(2, { message: "Bairro é obrigatório" }),
+  addressCity: z.string().trim().min(2, { message: "Cidade é obrigatória" }),
+  addressState: z.string().trim().length(2, { message: "Estado deve ter 2 letras (ex: SP)" }),
+  addressZip: z.string().trim().min(8, { message: "CEP deve ter 8 dígitos" }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
@@ -29,12 +38,31 @@ const resetSchema = z.object({
 
 type AuthMode = "login" | "signup" | "reset";
 
+interface AddressData {
+  phone: string;
+  addressStreet: string;
+  addressNumber: string;
+  addressComplement: string;
+  addressNeighborhood: string;
+  addressCity: string;
+  addressState: string;
+  addressZip: string;
+}
+
 const Auth = () => {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [addressStreet, setAddressStreet] = useState("");
+  const [addressNumber, setAddressNumber] = useState("");
+  const [addressComplement, setAddressComplement] = useState("");
+  const [addressNeighborhood, setAddressNeighborhood] = useState("");
+  const [addressCity, setAddressCity] = useState("");
+  const [addressState, setAddressState] = useState("");
+  const [addressZip, setAddressZip] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -55,7 +83,20 @@ const Auth = () => {
       if (mode === "login") {
         loginSchema.parse({ email, password });
       } else if (mode === "signup") {
-        signUpSchema.parse({ email, password, fullName, confirmPassword });
+        signUpSchema.parse({ 
+          email, 
+          password, 
+          fullName, 
+          confirmPassword,
+          phone,
+          addressStreet,
+          addressNumber,
+          addressComplement,
+          addressNeighborhood,
+          addressCity,
+          addressState,
+          addressZip,
+        });
       } else {
         resetSchema.parse({ email });
       }
@@ -95,7 +136,17 @@ const Auth = () => {
           navigate("/");
         }
       } else if (mode === "signup") {
-        const { error } = await signUp(email, password, fullName);
+        const addressData: AddressData = {
+          phone,
+          addressStreet,
+          addressNumber,
+          addressComplement,
+          addressNeighborhood,
+          addressCity,
+          addressState,
+          addressZip,
+        };
+        const { error } = await signUp(email, password, fullName, addressData);
         if (error) {
           if (error.message.includes("User already registered")) {
             toast.error("Este email já está cadastrado");
@@ -150,10 +201,156 @@ const Auth = () => {
   const getSubtitle = () => {
     switch (mode) {
       case "login": return "Entre para continuar sua jornada literária";
-      case "signup": return "Junte-se a milhares de leitoras apaixonadas";
+      case "signup": return "Preencha seus dados para começar";
       case "reset": return "Digite seu email para receber o link de recuperação";
     }
   };
+
+  const renderSignupFields = () => (
+    <>
+      {/* Nome e Telefone */}
+      <div className="space-y-2">
+        <Label htmlFor="fullName">Nome completo *</Label>
+        <Input
+          id="fullName"
+          type="text"
+          placeholder="Seu nome"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          className={errors.fullName ? "border-destructive" : ""}
+        />
+        {errors.fullName && (
+          <p className="text-sm text-destructive">{errors.fullName}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="phone">Telefone *</Label>
+        <Input
+          id="phone"
+          type="tel"
+          placeholder="(00) 00000-0000"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className={errors.phone ? "border-destructive" : ""}
+        />
+        {errors.phone && (
+          <p className="text-sm text-destructive">{errors.phone}</p>
+        )}
+      </div>
+
+      {/* Endereço */}
+      <div className="pt-4 border-t border-border">
+        <h3 className="font-medium text-foreground mb-3">Endereço de entrega</h3>
+        
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="addressZip">CEP *</Label>
+            <Input
+              id="addressZip"
+              type="text"
+              placeholder="00000-000"
+              value={addressZip}
+              onChange={(e) => setAddressZip(e.target.value)}
+              className={errors.addressZip ? "border-destructive" : ""}
+            />
+            {errors.addressZip && (
+              <p className="text-sm text-destructive">{errors.addressZip}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="addressStreet">Rua *</Label>
+              <Input
+                id="addressStreet"
+                type="text"
+                placeholder="Nome da rua"
+                value={addressStreet}
+                onChange={(e) => setAddressStreet(e.target.value)}
+                className={errors.addressStreet ? "border-destructive" : ""}
+              />
+              {errors.addressStreet && (
+                <p className="text-sm text-destructive">{errors.addressStreet}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressNumber">Nº *</Label>
+              <Input
+                id="addressNumber"
+                type="text"
+                placeholder="123"
+                value={addressNumber}
+                onChange={(e) => setAddressNumber(e.target.value)}
+                className={errors.addressNumber ? "border-destructive" : ""}
+              />
+              {errors.addressNumber && (
+                <p className="text-sm text-destructive">{errors.addressNumber}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="addressComplement">Complemento</Label>
+            <Input
+              id="addressComplement"
+              type="text"
+              placeholder="Apto, bloco, etc."
+              value={addressComplement}
+              onChange={(e) => setAddressComplement(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="addressNeighborhood">Bairro *</Label>
+            <Input
+              id="addressNeighborhood"
+              type="text"
+              placeholder="Seu bairro"
+              value={addressNeighborhood}
+              onChange={(e) => setAddressNeighborhood(e.target.value)}
+              className={errors.addressNeighborhood ? "border-destructive" : ""}
+            />
+            {errors.addressNeighborhood && (
+              <p className="text-sm text-destructive">{errors.addressNeighborhood}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="addressCity">Cidade *</Label>
+              <Input
+                id="addressCity"
+                type="text"
+                placeholder="Sua cidade"
+                value={addressCity}
+                onChange={(e) => setAddressCity(e.target.value)}
+                className={errors.addressCity ? "border-destructive" : ""}
+              />
+              {errors.addressCity && (
+                <p className="text-sm text-destructive">{errors.addressCity}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressState">UF *</Label>
+              <Input
+                id="addressState"
+                type="text"
+                placeholder="SP"
+                maxLength={2}
+                value={addressState}
+                onChange={(e) => setAddressState(e.target.value.toUpperCase())}
+                className={errors.addressState ? "border-destructive" : ""}
+              />
+              {errors.addressState && (
+                <p className="text-sm text-destructive">{errors.addressState}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -170,7 +367,7 @@ const Auth = () => {
           </span>
         </Link>
 
-        <div className="w-full max-w-md bg-card rounded-2xl shadow-card p-8">
+        <div className={`w-full bg-card rounded-2xl shadow-card p-8 ${mode === "signup" ? "max-w-lg" : "max-w-md"}`}>
           <h1 className="font-serif text-2xl font-bold text-center text-foreground mb-2">
             {getTitle()}
           </h1>
@@ -178,105 +375,144 @@ const Auth = () => {
             {getSubtitle()}
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "signup" && (
+          {mode === "signup" ? (
+            <ScrollArea className="max-h-[60vh] pr-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {renderSignupFields()}
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={errors.email ? "border-destructive" : ""}
+                  />
+                  {errors.email && (
+                    <p className="text-sm text-destructive">{errors.email}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha *</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar senha *</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={errors.confirmPassword ? "border-destructive" : ""}
+                  />
+                  {errors.confirmPassword && (
+                    <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                  )}
+                </div>
+
+                <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Criando conta...
+                    </>
+                  ) : (
+                    "Criar conta"
+                  )}
+                </Button>
+              </form>
+            </ScrollArea>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="fullName">Nome completo</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="Seu nome"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className={errors.fullName ? "border-destructive" : ""}
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={errors.email ? "border-destructive" : ""}
                 />
-                {errors.fullName && (
-                  <p className="text-sm text-destructive">{errors.fullName}</p>
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
                 )}
               </div>
-            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={errors.email ? "border-destructive" : ""}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
+              {mode !== "reset" && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password}</p>
+                  )}
+                </div>
               )}
-            </div>
 
-            {mode !== "reset" && (
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={errors.password ? "border-destructive pr-10" : "pr-10"}
-                  />
+              {mode === "login" && (
+                <div className="text-right">
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => switchMode("reset")}
+                    className="text-sm text-primary hover:underline"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    Esqueceu a senha?
                   </button>
                 </div>
-                {errors.password && (
-                  <p className="text-sm text-destructive">{errors.password}</p>
-                )}
-              </div>
-            )}
-
-            {mode === "signup" && (
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar senha</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={errors.confirmPassword ? "border-destructive" : ""}
-                />
-                {errors.confirmPassword && (
-                  <p className="text-sm text-destructive">{errors.confirmPassword}</p>
-                )}
-              </div>
-            )}
-
-            {mode === "login" && (
-              <div className="text-right">
-                <button
-                  type="button"
-                  onClick={() => switchMode("reset")}
-                  className="text-sm text-primary hover:underline"
-                >
-                  Esqueceu a senha?
-                </button>
-              </div>
-            )}
-
-            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {mode === "login" ? "Entrando..." : mode === "signup" ? "Criando conta..." : "Enviando..."}
-                </>
-              ) : (
-                mode === "login" ? "Entrar" : mode === "signup" ? "Criar conta" : "Enviar link"
               )}
-            </Button>
-          </form>
+
+              <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {mode === "login" ? "Entrando..." : "Enviando..."}
+                  </>
+                ) : (
+                  mode === "login" ? "Entrar" : "Enviar link"
+                )}
+              </Button>
+            </form>
+          )}
 
           <div className="mt-6 text-center">
             {mode === "reset" ? (
