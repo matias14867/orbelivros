@@ -4,13 +4,16 @@ import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { usePurchaseHistory } from "@/hooks/usePurchaseHistory";
+import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Heart, ShoppingBag, User, Loader2, BookOpen, Trash2, AlertTriangle } from "lucide-react";
+import { Heart, ShoppingBag, User, Loader2, BookOpen, Trash2, AlertTriangle, Save, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 const Profile = () => {
@@ -30,7 +33,35 @@ const Profile = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const { favorites, loading: favLoading, removeFavorite } = useFavorites();
   const { purchases, loading: purchaseLoading } = usePurchaseHistory();
+  const { profile, loading: profileLoading, updateProfile } = useProfile();
   const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Form states
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [addressStreet, setAddressStreet] = useState("");
+  const [addressNumber, setAddressNumber] = useState("");
+  const [addressComplement, setAddressComplement] = useState("");
+  const [addressNeighborhood, setAddressNeighborhood] = useState("");
+  const [addressCity, setAddressCity] = useState("");
+  const [addressState, setAddressState] = useState("");
+  const [addressZip, setAddressZip] = useState("");
+
+  // Populate form when profile loads
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name || "");
+      setPhone(profile.phone || "");
+      setAddressStreet(profile.address_street || "");
+      setAddressNumber(profile.address_number || "");
+      setAddressComplement(profile.address_complement || "");
+      setAddressNeighborhood(profile.address_neighborhood || "");
+      setAddressCity(profile.address_city || "");
+      setAddressState(profile.address_state || "");
+      setAddressZip(profile.address_zip || "");
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -42,6 +73,32 @@ const Profile = () => {
     await signOut();
     toast.success("Você saiu da sua conta");
     navigate("/");
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const { error } = await updateProfile({
+        full_name: fullName,
+        phone,
+        address_street: addressStreet,
+        address_number: addressNumber,
+        address_complement: addressComplement,
+        address_neighborhood: addressNeighborhood,
+        address_city: addressCity,
+        address_state: addressState,
+        address_zip: addressZip,
+      });
+
+      if (error) throw error;
+      toast.success("Perfil atualizado com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao salvar. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -106,7 +163,7 @@ const Profile = () => {
                 </Avatar>
                 <div className="text-center sm:text-left flex-1">
                   <h1 className="font-serif text-2xl font-bold text-foreground">
-                    {user.user_metadata?.full_name || "Usuário"}
+                    {profile?.full_name || user.user_metadata?.full_name || "Usuário"}
                   </h1>
                   <p className="text-muted-foreground">{user.email}</p>
                 </div>
@@ -155,8 +212,12 @@ const Profile = () => {
           </Card>
 
           {/* Tabs */}
-          <Tabs defaultValue="favorites" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs defaultValue="profile" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="profile" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Meus Dados
+              </TabsTrigger>
               <TabsTrigger value="favorites" className="flex items-center gap-2">
                 <Heart className="h-4 w-4" />
                 Favoritos ({favorites.length})
@@ -166,6 +227,151 @@ const Profile = () => {
                 Histórico ({purchases.length})
               </TabsTrigger>
             </TabsList>
+
+            {/* Profile Tab */}
+            <TabsContent value="profile">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 font-serif">
+                    <User className="h-5 w-5 text-primary" />
+                    Dados Pessoais
+                  </CardTitle>
+                  <CardDescription>
+                    Atualize suas informações de contato e endereço de entrega
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {profileLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSaveProfile} className="space-y-6">
+                      {/* Personal Info */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="fullName">Nome completo</Label>
+                          <Input
+                            id="fullName"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            placeholder="Seu nome completo"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="phone">Telefone</Label>
+                          <Input
+                            id="phone"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            placeholder="(00) 00000-0000"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Address Section */}
+                      <div className="pt-4 border-t border-border">
+                        <h3 className="font-medium text-foreground mb-4 flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          Endereço de Entrega
+                        </h3>
+                        
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="addressZip">CEP</Label>
+                              <Input
+                                id="addressZip"
+                                value={addressZip}
+                                onChange={(e) => setAddressZip(e.target.value)}
+                                placeholder="00000-000"
+                              />
+                            </div>
+                            <div className="md:col-span-2 space-y-2">
+                              <Label htmlFor="addressStreet">Rua</Label>
+                              <Input
+                                id="addressStreet"
+                                value={addressStreet}
+                                onChange={(e) => setAddressStreet(e.target.value)}
+                                placeholder="Nome da rua"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="addressNumber">Número</Label>
+                              <Input
+                                id="addressNumber"
+                                value={addressNumber}
+                                onChange={(e) => setAddressNumber(e.target.value)}
+                                placeholder="123"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="addressComplement">Complemento</Label>
+                              <Input
+                                id="addressComplement"
+                                value={addressComplement}
+                                onChange={(e) => setAddressComplement(e.target.value)}
+                                placeholder="Apto, bloco"
+                              />
+                            </div>
+                            <div className="md:col-span-2 space-y-2">
+                              <Label htmlFor="addressNeighborhood">Bairro</Label>
+                              <Input
+                                id="addressNeighborhood"
+                                value={addressNeighborhood}
+                                onChange={(e) => setAddressNeighborhood(e.target.value)}
+                                placeholder="Seu bairro"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="col-span-2 space-y-2">
+                              <Label htmlFor="addressCity">Cidade</Label>
+                              <Input
+                                id="addressCity"
+                                value={addressCity}
+                                onChange={(e) => setAddressCity(e.target.value)}
+                                placeholder="Sua cidade"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="addressState">UF</Label>
+                              <Input
+                                id="addressState"
+                                value={addressState}
+                                onChange={(e) => setAddressState(e.target.value.toUpperCase())}
+                                placeholder="SP"
+                                maxLength={2}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-4">
+                        <Button type="submit" disabled={saving}>
+                          {saving ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Salvando...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="h-4 w-4 mr-2" />
+                              Salvar Alterações
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             {/* Favorites Tab */}
             <TabsContent value="favorites">
