@@ -2,11 +2,22 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+interface AddressData {
+  phone: string;
+  addressStreet: string;
+  addressNumber: string;
+  addressComplement: string;
+  addressNeighborhood: string;
+  addressCity: string;
+  addressState: string;
+  addressZip: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string, addressData?: AddressData) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
@@ -38,10 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, addressData?: AddressData) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -51,6 +62,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     });
+
+    // If signup successful and we have address data, update the profile
+    if (!error && data.user && addressData) {
+      await supabase
+        .from('profiles')
+        .update({
+          phone: addressData.phone,
+          address_street: addressData.addressStreet,
+          address_number: addressData.addressNumber,
+          address_complement: addressData.addressComplement,
+          address_neighborhood: addressData.addressNeighborhood,
+          address_city: addressData.addressCity,
+          address_state: addressData.addressState,
+          address_zip: addressData.addressZip,
+        })
+        .eq('user_id', data.user.id);
+    }
+
     return { error };
   };
 
