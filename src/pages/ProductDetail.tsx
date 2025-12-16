@@ -11,6 +11,7 @@ import { ArrowLeft, Loader2, Minus, Plus, ShoppingBag, Heart, Truck, Shield, Boo
 import { toast } from "sonner";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import BookComments from "@/components/BookComments";
 
 interface ProductNode {
   id: string;
@@ -341,6 +342,9 @@ const ProductDetail = () => {
                 </div>
               </div>
             </div>
+
+            {/* Comments Section */}
+            <BookComments bookHandle={dbBook.handle} />
           </div>
         </main>
         <Footer />
@@ -538,6 +542,9 @@ const ProductDetail = () => {
             </div>
           </div>
         </div>
+
+        {/* Comments Section */}
+        <BookComments bookHandle={shopifyProduct.handle} />
       </main>
       <Footer />
     </div>

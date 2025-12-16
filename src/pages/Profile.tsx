@@ -1,17 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { usePurchaseHistory } from "@/hooks/usePurchaseHistory";
-import { useProfile } from "@/hooks/useProfile";
+import { useProfile, fetchAddressByCep } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Heart, ShoppingBag, User, Loader2, BookOpen, Trash2, AlertTriangle, Save, MapPin } from "lucide-react";
+import { Heart, ShoppingBag, User, Loader2, BookOpen, Trash2, AlertTriangle, Save, MapPin, Camera, Search } from "lucide-react";
 import { toast } from "sonner";
 
 const Profile = () => {
@@ -33,9 +33,12 @@ const Profile = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const { favorites, loading: favLoading, removeFavorite } = useFavorites();
   const { purchases, loading: purchaseLoading } = usePurchaseHistory();
-  const { profile, loading: profileLoading, updateProfile } = useProfile();
+  const { profile, loading: profileLoading, updateProfile, uploadAvatar } = useProfile();
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searchingCep, setSearchingCep] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form states
   const [fullName, setFullName] = useState("");
@@ -68,6 +71,73 @@ const Profile = () => {
       navigate("/auth");
     }
   }, [user, authLoading, navigate]);
+
+  const handleCepSearch = async () => {
+    if (!addressZip) return;
+    
+    setSearchingCep(true);
+    const data = await fetchAddressByCep(addressZip);
+    
+    if (data) {
+      setAddressStreet(data.logradouro || "");
+      setAddressNeighborhood(data.bairro || "");
+      setAddressCity(data.localidade || "");
+      setAddressState(data.uf || "");
+      if (data.complemento) setAddressComplement(data.complemento);
+      toast.success("Endereço encontrado!");
+    } else {
+      toast.error("CEP não encontrado");
+    }
+    setSearchingCep(false);
+  };
+
+  const handleCepChange = async (value: string) => {
+    const cleanCep = value.replace(/\D/g, '');
+    const formattedCep = cleanCep.length > 5 
+      ? `${cleanCep.slice(0, 5)}-${cleanCep.slice(5, 8)}`
+      : cleanCep;
+    setAddressZip(formattedCep);
+    
+    // Auto-search when CEP is complete
+    if (cleanCep.length === 8) {
+      setSearchingCep(true);
+      const data = await fetchAddressByCep(cleanCep);
+      if (data) {
+        setAddressStreet(data.logradouro || "");
+        setAddressNeighborhood(data.bairro || "");
+        setAddressCity(data.localidade || "");
+        setAddressState(data.uf || "");
+        if (data.complemento) setAddressComplement(data.complemento);
+        toast.success("Endereço encontrado!");
+      }
+      setSearchingCep(false);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Imagem muito grande. Máximo 2MB");
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Arquivo deve ser uma imagem");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    const { error } = await uploadAvatar(file);
+    
+    if (error) {
+      toast.error("Erro ao enviar foto");
+    } else {
+      toast.success("Foto atualizada!");
+    }
+    setUploadingAvatar(false);
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -156,11 +226,36 @@ const Profile = () => {
           <Card className="mb-8">
             <CardContent className="pt-6">
               <div className="flex flex-col sm:flex-row items-center gap-6">
-                <Avatar className="h-24 w-24">
-                  <AvatarFallback className="bg-primary/10 text-primary text-2xl font-serif">
-                    {userInitials}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-24 w-24">
+                    {profile?.avatar_url && (
+                      <AvatarImage src={profile.avatar_url} alt="Foto de perfil" />
+                    )}
+                    <AvatarFallback className="bg-primary/10 text-primary text-2xl font-serif">
+                      {userInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleAvatarChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute bottom-0 right-0 h-8 w-8 rounded-full shadow-md"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                  >
+                    {uploadingAvatar ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
                 <div className="text-center sm:text-left flex-1">
                   <h1 className="font-serif text-2xl font-bold text-foreground">
                     {profile?.full_name || user.user_metadata?.full_name || "Usuário"}
@@ -280,12 +375,28 @@ const Profile = () => {
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="addressZip">CEP</Label>
-                              <Input
-                                id="addressZip"
-                                value={addressZip}
-                                onChange={(e) => setAddressZip(e.target.value)}
-                                placeholder="00000-000"
-                              />
+                              <div className="flex gap-2">
+                                <Input
+                                  id="addressZip"
+                                  value={addressZip}
+                                  onChange={(e) => handleCepChange(e.target.value)}
+                                  placeholder="00000-000"
+                                  maxLength={9}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={handleCepSearch}
+                                  disabled={searchingCep || !addressZip}
+                                >
+                                  {searchingCep ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Search className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
                             </div>
                             <div className="md:col-span-2 space-y-2">
                               <Label htmlFor="addressStreet">Rua</Label>
