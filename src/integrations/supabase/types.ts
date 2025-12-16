@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      book_comments: {
+        Row: {
+          book_handle: string
+          comment: string
+          created_at: string
+          id: string
+          rating: number | null
+          updated_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          book_handle: string
+          comment: string
+          created_at?: string
+          id?: string
+          rating?: number | null
+          updated_at?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          book_handle?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          rating?: number | null
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       books: {
         Row: {
           author: string | null
