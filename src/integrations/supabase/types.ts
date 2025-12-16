@@ -20,7 +20,9 @@ export type Database = {
           comment: string
           created_at: string
           id: string
+          parent_id: string | null
           rating: number | null
+          status: string
           updated_at: string
           user_id: string
           user_name: string
@@ -30,7 +32,9 @@ export type Database = {
           comment: string
           created_at?: string
           id?: string
+          parent_id?: string | null
           rating?: number | null
+          status?: string
           updated_at?: string
           user_id: string
           user_name: string
@@ -40,12 +44,22 @@ export type Database = {
           comment?: string
           created_at?: string
           id?: string
+          parent_id?: string | null
           rating?: number | null
+          status?: string
           updated_at?: string
           user_id?: string
           user_name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "book_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "book_comments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       books: {
         Row: {
@@ -94,6 +108,35 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      comment_likes: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_likes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "book_comments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contacts: {
         Row: {

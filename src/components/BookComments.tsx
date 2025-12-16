@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, Star, Loader2, Trash2, Send } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { MessageSquare, Star, Loader2, Trash2, Send, ThumbsUp, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
@@ -17,7 +18,7 @@ interface BookCommentsProps {
 
 const BookComments = ({ bookHandle }: BookCommentsProps) => {
   const { user } = useAuth();
-  const { comments, loading, addComment, deleteComment } = useBookComments(bookHandle);
+  const { comments, loading, addComment, deleteComment, toggleLike } = useBookComments(bookHandle);
   const [newComment, setNewComment] = useState("");
   const [rating, setRating] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -34,7 +35,7 @@ const BookComments = ({ bookHandle }: BookCommentsProps) => {
     if (error) {
       toast.error("Erro ao enviar comentário");
     } else {
-      toast.success("Comentário enviado!");
+      toast.success("Comentário enviado! Aguardando aprovação.");
       setNewComment("");
       setRating(0);
     }
@@ -50,8 +51,25 @@ const BookComments = ({ bookHandle }: BookCommentsProps) => {
     }
   };
 
-  const averageRating = comments.length > 0
-    ? comments.filter(c => c.rating).reduce((acc, c) => acc + (c.rating || 0), 0) / comments.filter(c => c.rating).length
+  const handleLike = async (commentId: string) => {
+    if (!user) {
+      toast.error("Faça login para curtir");
+      return;
+    }
+    const { error } = await toggleLike(commentId, user.id);
+    if (error) {
+      toast.error("Erro ao curtir");
+    }
+  };
+
+  // Only show approved comments to regular users, show all to comment owners
+  const visibleComments = comments.filter(c => 
+    c.status === 'approved' || c.user_id === user?.id
+  );
+
+  const approvedComments = comments.filter(c => c.status === 'approved');
+  const averageRating = approvedComments.length > 0
+    ? approvedComments.filter(c => c.rating).reduce((acc, c) => acc + (c.rating || 0), 0) / approvedComments.filter(c => c.rating).length
     : 0;
 
   return (
@@ -60,9 +78,9 @@ const BookComments = ({ bookHandle }: BookCommentsProps) => {
         <CardTitle className="flex items-center gap-2 font-serif">
           <MessageSquare className="h-5 w-5 text-primary" />
           Avaliações dos Leitores
-          {comments.length > 0 && (
+          {approvedComments.length > 0 && (
             <span className="text-sm font-normal text-muted-foreground ml-2">
-              ({comments.length} {comments.length === 1 ? "avaliação" : "avaliações"})
+              ({approvedComments.length} {approvedComments.length === 1 ? "avaliação" : "avaliações"})
               {averageRating > 0 && (
                 <span className="ml-2 inline-flex items-center gap-1">
                   <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -135,14 +153,14 @@ const BookComments = ({ bookHandle }: BookCommentsProps) => {
           <div className="flex justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
-        ) : comments.length === 0 ? (
+        ) : visibleComments.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p>Seja o primeiro a avaliar este livro!</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {comments.map((comment) => {
+            {visibleComments.map((comment) => {
               const initials = comment.user_name
                 .split(" ")
                 .map((n) => n[0])
@@ -150,10 +168,15 @@ const BookComments = ({ bookHandle }: BookCommentsProps) => {
                 .toUpperCase()
                 .slice(0, 2);
 
+              const isPending = comment.status === 'pending';
+              const isOwner = user?.id === comment.user_id;
+
               return (
                 <div
                   key={comment.id}
-                  className="flex gap-4 p-4 bg-muted/30 rounded-lg"
+                  className={`flex gap-4 p-4 rounded-lg ${
+                    isPending ? 'bg-yellow-500/10 border border-yellow-500/20' : 'bg-muted/30'
+                  }`}
                 >
                   <Avatar className="h-10 w-10 flex-shrink-0">
                     <AvatarFallback className="bg-primary/10 text-primary text-sm">
@@ -184,12 +207,33 @@ const BookComments = ({ bookHandle }: BookCommentsProps) => {
                           locale: ptBR,
                         })}
                       </span>
+                      {isPending && isOwner && (
+                        <Badge variant="outline" className="text-yellow-600 border-yellow-500">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Aguardando aprovação
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-muted-foreground mt-1 whitespace-pre-wrap">
                       {comment.comment}
                     </p>
+                    
+                    {/* Like button */}
+                    {comment.status === 'approved' && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`h-8 px-2 ${comment.user_liked ? 'text-primary' : 'text-muted-foreground'}`}
+                          onClick={() => handleLike(comment.id)}
+                        >
+                          <ThumbsUp className={`h-4 w-4 mr-1 ${comment.user_liked ? 'fill-primary' : ''}`} />
+                          {comment.likes_count || 0}
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  {user?.id === comment.user_id && (
+                  {isOwner && (
                     <Button
                       variant="ghost"
                       size="icon"

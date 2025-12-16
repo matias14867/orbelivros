@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { SiteTextsEditor } from "@/components/admin/SiteTextsEditor";
 import { SiteImagesEditor } from "@/components/admin/SiteImagesEditor";
+import CommentsManager from "@/components/admin/CommentsManager";
 import {
   Loader2,
   BookOpen,
@@ -28,6 +29,7 @@ import {
   Search,
   Users,
   MessageSquare,
+  MessageCircle,
   Palette,
   Plus,
   Trash2,
@@ -401,10 +403,14 @@ const Admin = () => {
           </div>
 
           <Tabs defaultValue="books" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:inline-grid">
               <TabsTrigger value="books" className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
                 <span className="hidden sm:inline">Livros</span>
+              </TabsTrigger>
+              <TabsTrigger value="comments" className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">Comentários</span>
               </TabsTrigger>
               <TabsTrigger value="contacts" className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
@@ -508,6 +514,11 @@ const Admin = () => {
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            {/* Comments Tab */}
+            <TabsContent value="comments">
+              <CommentsManager />
             </TabsContent>
 
             {/* Contacts Tab */}
