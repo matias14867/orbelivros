@@ -5,14 +5,21 @@ import { ShopifyProducts } from "@/components/ShopifyProducts";
 import Benefits from "@/components/Benefits";
 import Newsletter from "@/components/Newsletter";
 import Footer from "@/components/Footer";
+import AboutUs from "@/components/AboutUs";
+import InspirationalQuote, { getRandomQuote } from "@/components/InspirationalQuote";
+import { useMemo } from "react";
 
 const Index = () => {
+  const quote = useMemo(() => getRandomQuote(), []);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main>
         <Hero />
+        <InspirationalQuote quote={quote.quote} author={quote.author} className="bg-muted/30" />
         <Categories />
+        <AboutUs />
         <ShopifyProducts />
         <Benefits />
         <Newsletter />

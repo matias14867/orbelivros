@@ -204,6 +204,44 @@ export type Database = {
         }
         Relationships: []
       }
+      monthly_picks: {
+        Row: {
+          book_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          month: number
+          year: number
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          month: number
+          year: number
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          month?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_picks_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address_city: string | null

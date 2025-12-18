@@ -24,7 +24,8 @@ interface ImageField {
 
 const IMAGE_FIELDS: ImageField[] = [
   { key: "logo", label: "Logo da Loja", description: "Logo exibido no cabeçalho (recomendado: 200x60px)", aspectRatio: "200/60" },
-  { key: "heroImage", label: "Imagem do Hero", description: "Banner principal da página inicial (recomendado: 1920x1080px)", aspectRatio: "16/9" },
+  { key: "heroImage", label: "Imagem do Hero", description: "Banner principal da página inicial - cena aconchegante de leitura (recomendado: 1920x1080px)", aspectRatio: "16/9" },
+  { key: "aboutImage", label: "Imagem Quem Somos", description: "Imagem de fundo da seção Quem Somos (recomendado: 1920x1080px)", aspectRatio: "16/9" },
   { key: "favicon", label: "Favicon", description: "Ícone do site na aba do navegador (recomendado: 32x32px)", aspectRatio: "1/1" },
 ];
 

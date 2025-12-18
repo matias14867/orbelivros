@@ -52,6 +52,14 @@ const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
     phoneDesc: "Seg a Sex, 9h às 18h",
     addressLabel: "Endereço",
   },
+  about: {
+    badge: "Quem Somos",
+    title: "Sua Livraria de Confiança",
+    paragraph1: "Somos apaixonados por livros e acreditamos no poder transformador da leitura. Nossa missão é conectar leitoras a histórias que inspiram, emocionam e fazem refletir.",
+    paragraph2: "Cada livro em nossa curadoria foi escolhido com carinho, pensando em você que busca momentos de paz, conhecimento e aventura entre as páginas.",
+    quote: "Um livro é um sonho que você segura nas mãos.",
+    quoteAuthor: "Neil Gaiman",
+  },
   footer: {
     aboutTitle: "Sobre Nós",
     aboutText: "Sua livraria online favorita, com curadoria especial de livros para mulheres que amam ler.",

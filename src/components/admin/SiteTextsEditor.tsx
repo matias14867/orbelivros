@@ -99,6 +99,18 @@ const TEXT_SECTIONS: TextSection[] = [
     ],
   },
   {
+    key: "about",
+    label: "Quem Somos",
+    fields: [
+      { name: "badge", label: "Badge/Etiqueta", type: "input", placeholder: "Quem Somos" },
+      { name: "title", label: "Título", type: "input", placeholder: "Sua Livraria de Confiança" },
+      { name: "paragraph1", label: "Parágrafo 1", type: "textarea", placeholder: "Somos apaixonados por livros..." },
+      { name: "paragraph2", label: "Parágrafo 2", type: "textarea", placeholder: "Cada livro em nossa curadoria..." },
+      { name: "quote", label: "Citação Inspiradora", type: "textarea", placeholder: "Um livro é um sonho..." },
+      { name: "quoteAuthor", label: "Autor da Citação", type: "input", placeholder: "Neil Gaiman" },
+    ],
+  },
+  {
     key: "footer",
     label: "Rodapé",
     fields: [
@@ -183,6 +195,14 @@ const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
     categoriesTitle: "Categorias",
     contactTitle: "Contato",
     copyright: "© 2024 Orbe Livros. Todos os direitos reservados.",
+  },
+  about: {
+    badge: "Quem Somos",
+    title: "Sua Livraria de Confiança",
+    paragraph1: "Somos apaixonados por livros e acreditamos no poder transformador da leitura. Nossa missão é conectar leitoras a histórias que inspiram, emocionam e fazem refletir.",
+    paragraph2: "Cada livro em nossa curadoria foi escolhido com carinho, pensando em você que busca momentos de paz, conhecimento e aventura entre as páginas.",
+    quote: "Um livro é um sonho que você segura nas mãos.",
+    quoteAuthor: "Neil Gaiman",
   },
   header: {
     storeName: "Orbe Livros",
