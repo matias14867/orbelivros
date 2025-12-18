@@ -13,11 +13,7 @@ const AboutUs = () => {
     <section className="py-20 relative overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
-        <img
-          src={aboutImage}
-          alt="Ambiente aconchegante de leitura"
-          className="w-full h-full object-cover"
-        />
+        <img src={aboutImage} alt="Ambiente aconchegante de leitura" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60" />
       </div>
 
@@ -29,24 +25,24 @@ const AboutUs = () => {
           </span>
 
           <h2 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-6">
-            {texts.title || "Sua Livraria de Confiança"}
+            {texts.title || "Orbe Livros"}
           </h2>
 
           <p className="text-muted-foreground text-lg leading-relaxed mb-6">
-            {texts.paragraph1 || "Somos apaixonados por livros e acreditamos no poder transformador da leitura. Nossa missão é conectar leitoras a histórias que inspiram, emocionam e fazem refletir."}
+            {texts.paragraph1 ||
+              "Somos apaixonados por livros e acreditamos no poder transformador da leitura. Nossa missão é conectar leitoras a histórias que inspiram, emocionam e fazem refletir."}
           </p>
 
           <p className="text-muted-foreground leading-relaxed">
-            {texts.paragraph2 || "Cada livro em nossa curadoria foi escolhido com carinho, pensando em você que busca momentos de paz, conhecimento e aventura entre as páginas."}
+            {texts.paragraph2 ||
+              "Cada livro em nossa curadoria foi escolhido com carinho, pensando em você que busca momentos de paz, conhecimento e aventura entre as páginas."}
           </p>
 
           {texts.quote && (
             <blockquote className="mt-8 pl-6 border-l-4 border-primary italic text-foreground/80">
               "{texts.quote}"
               {texts.quoteAuthor && (
-                <footer className="mt-2 text-sm text-muted-foreground not-italic">
-                  — {texts.quoteAuthor}
-                </footer>
+                <footer className="mt-2 text-sm text-muted-foreground not-italic">— {texts.quoteAuthor}</footer>
               )}
             </blockquote>
           )}

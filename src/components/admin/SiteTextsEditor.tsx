@@ -7,17 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { toast } from "sonner";
-import { 
-  Type, 
-  Home, 
-  Info, 
-  Mail, 
-  Gift, 
-  FileText, 
-  Loader2,
-  Save,
-  RotateCcw
-} from "lucide-react";
+import { Type, Home, Info, Mail, Gift, FileText, Loader2, Save, RotateCcw } from "lucide-react";
 
 interface TextSection {
   key: string;
@@ -55,19 +45,39 @@ const TEXT_SECTIONS: TextSection[] = [
     fields: [
       { name: "sectionTag", label: "Tag da Seção", type: "input", placeholder: "Por que escolher a gente?" },
       { name: "sectionTitle", label: "Título da Seção", type: "input", placeholder: "Benefícios Exclusivos" },
-      { name: "sectionSubtitle", label: "Subtítulo da Seção", type: "textarea", placeholder: "Oferecemos a melhor experiência..." },
+      {
+        name: "sectionSubtitle",
+        label: "Subtítulo da Seção",
+        type: "textarea",
+        placeholder: "Oferecemos a melhor experiência...",
+      },
       { name: "benefit1Title", label: "Benefício 1 - Título", type: "input", placeholder: "Frete Grátis" },
-      { name: "benefit1Desc", label: "Benefício 1 - Descrição", type: "input", placeholder: "Em compras acima de R$ 99" },
+      {
+        name: "benefit1Desc",
+        label: "Benefício 1 - Descrição",
+        type: "input",
+        placeholder: "Em compras acima de R$ 99",
+      },
       { name: "benefit2Title", label: "Benefício 2 - Título", type: "input", placeholder: "Compra Segura" },
       { name: "benefit2Desc", label: "Benefício 2 - Descrição", type: "input", placeholder: "Seus dados protegidos" },
       { name: "benefit3Title", label: "Benefício 3 - Título", type: "input", placeholder: "Parcele em 12x" },
       { name: "benefit3Desc", label: "Benefício 3 - Descrição", type: "input", placeholder: "Sem juros no cartão" },
       { name: "benefit4Title", label: "Benefício 4 - Título", type: "input", placeholder: "Embalagem Especial" },
-      { name: "benefit4Desc", label: "Benefício 4 - Descrição", type: "input", placeholder: "Perfeita para presentear" },
+      {
+        name: "benefit4Desc",
+        label: "Benefício 4 - Descrição",
+        type: "input",
+        placeholder: "Perfeita para presentear",
+      },
       { name: "benefit5Title", label: "Benefício 5 - Título", type: "input", placeholder: "Entrega Rápida" },
       { name: "benefit5Desc", label: "Benefício 5 - Descrição", type: "input", placeholder: "Receba em até 7 dias" },
       { name: "benefit6Title", label: "Benefício 6 - Título", type: "input", placeholder: "Suporte 24h" },
-      { name: "benefit6Desc", label: "Benefício 6 - Descrição", type: "input", placeholder: "Atendimento personalizado" },
+      {
+        name: "benefit6Desc",
+        label: "Benefício 6 - Descrição",
+        type: "input",
+        placeholder: "Atendimento personalizado",
+      },
     ],
   },
   {
@@ -76,7 +86,12 @@ const TEXT_SECTIONS: TextSection[] = [
     fields: [
       { name: "badge", label: "Badge/Etiqueta", type: "input", placeholder: "Ofertas exclusivas" },
       { name: "title", label: "Título", type: "input", placeholder: "Receba 10% de desconto" },
-      { name: "subtitle", label: "Subtítulo", type: "textarea", placeholder: "Assine nossa newsletter e ganhe desconto..." },
+      {
+        name: "subtitle",
+        label: "Subtítulo",
+        type: "textarea",
+        placeholder: "Assine nossa newsletter e ganhe desconto...",
+      },
       { name: "placeholder", label: "Placeholder do Email", type: "input", placeholder: "Seu melhor e-mail" },
       { name: "button", label: "Texto do Botão", type: "input", placeholder: "Inscrever" },
       { name: "disclaimer", label: "Texto Legal", type: "input", placeholder: "Prometemos não enviar spam..." },
@@ -90,7 +105,12 @@ const TEXT_SECTIONS: TextSection[] = [
       { name: "title", label: "Título", type: "input", placeholder: "Estamos aqui para ajudar" },
       { name: "subtitle", label: "Subtítulo", type: "textarea", placeholder: "Tem alguma dúvida, sugestão..." },
       { name: "formTitle", label: "Título do Formulário", type: "input", placeholder: "Envie sua mensagem" },
-      { name: "formSubtitle", label: "Subtítulo do Formulário", type: "input", placeholder: "Preencha o formulário abaixo..." },
+      {
+        name: "formSubtitle",
+        label: "Subtítulo do Formulário",
+        type: "input",
+        placeholder: "Preencha o formulário abaixo...",
+      },
       { name: "emailLabel", label: "Label E-mail", type: "input", placeholder: "E-mail" },
       { name: "emailDesc", label: "Descrição E-mail", type: "input", placeholder: "Resposta em até 24h" },
       { name: "phoneLabel", label: "Label Telefone", type: "input", placeholder: "Telefone" },
@@ -119,7 +139,12 @@ const TEXT_SECTIONS: TextSection[] = [
       { name: "linksTitle", label: "Título Links Rápidos", type: "input", placeholder: "Links Rápidos" },
       { name: "categoriesTitle", label: "Título Categorias", type: "input", placeholder: "Categorias" },
       { name: "contactTitle", label: "Título Contato", type: "input", placeholder: "Contato" },
-      { name: "copyright", label: "Texto Copyright", type: "input", placeholder: "© 2024 Orbe Livros. Todos os direitos reservados." },
+      {
+        name: "copyright",
+        label: "Texto Copyright",
+        type: "input",
+        placeholder: "© 2024 Orbe Livros. Todos os direitos reservados.",
+      },
     ],
   },
   {
@@ -141,7 +166,8 @@ const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
     badge: "Nova coleção disponível",
     title: "Descubra seu próximo",
     titleHighlight: "livro favorito",
-    subtitle: "Explore nossa curadoria especial de livros selecionados para mulheres que amam ler. Romances, desenvolvimento pessoal, ficção e muito mais.",
+    subtitle:
+      "Explore nossa curadoria especial de livros selecionados para mulheres que amam ler. Romances, desenvolvimento pessoal, ficção e muito mais.",
     buttonPrimary: "Explorar Livros",
     buttonSecondary: "Ver Ofertas",
     stat1Value: "5k+",
@@ -171,7 +197,8 @@ const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
   newsletter: {
     badge: "Ofertas exclusivas",
     title: "Receba 10% de desconto",
-    subtitle: "Assine nossa newsletter e ganhe desconto na primeira compra, além de receber novidades e recomendações de leitura.",
+    subtitle:
+      "Assine nossa newsletter e ganhe desconto na primeira compra, além de receber novidades e recomendações de leitura.",
     placeholder: "Seu melhor e-mail",
     button: "Inscrever",
     disclaimer: "Prometemos não enviar spam. Você pode cancelar a qualquer momento.",
@@ -179,7 +206,8 @@ const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
   contact: {
     badge: "Fale Conosco",
     title: "Estamos aqui para ajudar",
-    subtitle: "Tem alguma dúvida, sugestão ou precisa de suporte? Entre em contato conosco e responderemos o mais rápido possível.",
+    subtitle:
+      "Tem alguma dúvida, sugestão ou precisa de suporte? Entre em contato conosco e responderemos o mais rápido possível.",
     formTitle: "Envie sua mensagem",
     formSubtitle: "Preencha o formulário abaixo e entraremos em contato",
     emailLabel: "E-mail",
@@ -198,9 +226,11 @@ const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
   },
   about: {
     badge: "Quem Somos",
-    title: "Sua Livraria de Confiança",
-    paragraph1: "Somos apaixonados por livros e acreditamos no poder transformador da leitura. Nossa missão é conectar leitoras a histórias que inspiram, emocionam e fazem refletir.",
-    paragraph2: "Cada livro em nossa curadoria foi escolhido com carinho, pensando em você que busca momentos de paz, conhecimento e aventura entre as páginas.",
+    title: "Orbe Livros",
+    paragraph1:
+      "Somos apaixonados por livros e acreditamos no poder transformador da leitura. Nossa missão é conectar leitoras a histórias que inspiram, emocionam e fazem refletir.",
+    paragraph2:
+      "Cada livro em nossa curadoria foi escolhido com carinho, pensando em você que busca momentos de paz, conhecimento e aventura entre as páginas.",
     quote: "Um livro é um sonho que você segura nas mãos.",
     quoteAuthor: "Neil Gaiman",
   },
@@ -252,7 +282,12 @@ export function SiteTextsEditor() {
   };
 
   const handleReset = (section: string) => {
-    if (!confirm(`Tem certeza que deseja restaurar os textos padrão de "${TEXT_SECTIONS.find(s => s.key === section)?.label}"?`)) return;
+    if (
+      !confirm(
+        `Tem certeza que deseja restaurar os textos padrão de "${TEXT_SECTIONS.find((s) => s.key === section)?.label}"?`,
+      )
+    )
+      return;
     setTexts((prev) => ({
       ...prev,
       [section]: DEFAULT_TEXTS[section],
@@ -262,13 +297,20 @@ export function SiteTextsEditor() {
 
   const getIcon = (key: string) => {
     switch (key) {
-      case "hero": return <Home className="h-4 w-4" />;
-      case "benefits": return <Gift className="h-4 w-4" />;
-      case "newsletter": return <Mail className="h-4 w-4" />;
-      case "contact": return <Info className="h-4 w-4" />;
-      case "footer": return <FileText className="h-4 w-4" />;
-      case "header": return <Type className="h-4 w-4" />;
-      default: return <Type className="h-4 w-4" />;
+      case "hero":
+        return <Home className="h-4 w-4" />;
+      case "benefits":
+        return <Gift className="h-4 w-4" />;
+      case "newsletter":
+        return <Mail className="h-4 w-4" />;
+      case "contact":
+        return <Info className="h-4 w-4" />;
+      case "footer":
+        return <FileText className="h-4 w-4" />;
+      case "header":
+        return <Type className="h-4 w-4" />;
+      default:
+        return <Type className="h-4 w-4" />;
     }
   };
 
@@ -293,11 +335,7 @@ export function SiteTextsEditor() {
           </p>
         </div>
         <Button onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
           Salvar Todos
         </Button>
       </div>
@@ -305,11 +343,7 @@ export function SiteTextsEditor() {
       <Tabs value={activeSection} onValueChange={setActiveSection}>
         <TabsList className="flex flex-wrap h-auto gap-2">
           {TEXT_SECTIONS.map((section) => (
-            <TabsTrigger 
-              key={section.key} 
-              value={section.key}
-              className="flex items-center gap-2"
-            >
+            <TabsTrigger key={section.key} value={section.key} className="flex items-center gap-2">
               {getIcon(section.key)}
               <span className="hidden sm:inline">{section.label}</span>
             </TabsTrigger>
@@ -325,15 +359,9 @@ export function SiteTextsEditor() {
                     {getIcon(section.key)}
                     {section.label}
                   </CardTitle>
-                  <CardDescription>
-                    Edite os textos desta seção do site
-                  </CardDescription>
+                  <CardDescription>Edite os textos desta seção do site</CardDescription>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleReset(section.key)}
-                >
+                <Button variant="outline" size="sm" onClick={() => handleReset(section.key)}>
                   <RotateCcw className="h-4 w-4 mr-2" />
                   Restaurar Padrão
                 </Button>
@@ -341,13 +369,8 @@ export function SiteTextsEditor() {
               <CardContent className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   {section.fields.map((field) => (
-                    <div 
-                      key={field.name} 
-                      className={field.type === "textarea" ? "sm:col-span-2" : ""}
-                    >
-                      <Label htmlFor={`${section.key}-${field.name}`}>
-                        {field.label}
-                      </Label>
+                    <div key={field.name} className={field.type === "textarea" ? "sm:col-span-2" : ""}>
+                      <Label htmlFor={`${section.key}-${field.name}`}>{field.label}</Label>
                       {field.type === "textarea" ? (
                         <Textarea
                           id={`${section.key}-${field.name}`}

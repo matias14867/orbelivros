@@ -1,11 +1,12 @@
-import { useSiteSettings } from './useSiteSettings';
+import { useSiteSettings } from "./useSiteSettings";
 
 const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
   hero: {
     badge: "Nova coleção disponível",
     title: "Descubra seu próximo",
     titleHighlight: "livro favorito",
-    subtitle: "Explore nossa curadoria especial de livros selecionados para mulheres que amam ler. Romances, desenvolvimento pessoal, ficção e muito mais.",
+    subtitle:
+      "Explore nossa curadoria especial de livros selecionados para mulheres que amam ler. Romances, desenvolvimento pessoal, ficção e muito mais.",
     buttonPrimary: "Explorar Livros",
     buttonSecondary: "Ver Ofertas",
     stat1Value: "5k+",
@@ -35,7 +36,8 @@ const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
   newsletter: {
     badge: "Ofertas exclusivas",
     title: "Receba 10% de desconto",
-    subtitle: "Assine nossa newsletter e ganhe desconto na primeira compra, além de receber novidades e recomendações de leitura.",
+    subtitle:
+      "Assine nossa newsletter e ganhe desconto na primeira compra, além de receber novidades e recomendações de leitura.",
     placeholder: "Seu melhor e-mail",
     button: "Inscrever",
     disclaimer: "Prometemos não enviar spam. Você pode cancelar a qualquer momento.",
@@ -43,7 +45,8 @@ const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
   contact: {
     badge: "Fale Conosco",
     title: "Estamos aqui para ajudar",
-    subtitle: "Tem alguma dúvida, sugestão ou precisa de suporte? Entre em contato conosco e responderemos o mais rápido possível.",
+    subtitle:
+      "Tem alguma dúvida, sugestão ou precisa de suporte? Entre em contato conosco e responderemos o mais rápido possível.",
     formTitle: "Envie sua mensagem",
     formSubtitle: "Preencha o formulário abaixo e entraremos em contato",
     emailLabel: "E-mail",
@@ -54,9 +57,11 @@ const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
   },
   about: {
     badge: "Quem Somos",
-    title: "Sua Livraria de Confiança",
-    paragraph1: "Somos apaixonados por livros e acreditamos no poder transformador da leitura. Nossa missão é conectar leitoras a histórias que inspiram, emocionam e fazem refletir.",
-    paragraph2: "Cada livro em nossa curadoria foi escolhido com carinho, pensando em você que busca momentos de paz, conhecimento e aventura entre as páginas.",
+    title: "Orbe Livros",
+    paragraph1:
+      "Somos apaixonados por livros e acreditamos no poder transformador da leitura. Nossa missão é conectar leitoras a histórias que inspiram, emocionam e fazem refletir.",
+    paragraph2:
+      "Cada livro em nossa curadoria foi escolhido com carinho, pensando em você que busca momentos de paz, conhecimento e aventura entre as páginas.",
     quote: "Um livro é um sonho que você segura nas mãos.",
     quoteAuthor: "Neil Gaiman",
   },
@@ -80,7 +85,7 @@ const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
 
 export function useSiteTexts() {
   const { settings, loading } = useSiteSettings();
-  
+
   const getText = (section: string, key: string): string => {
     const texts = settings.texts as Record<string, Record<string, string>> | undefined;
     return texts?.[section]?.[key] || DEFAULT_TEXTS[section]?.[key] || "";
