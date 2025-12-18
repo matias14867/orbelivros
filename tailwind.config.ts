@@ -69,6 +69,10 @@ export default {
           DEFAULT: "hsl(var(--gold))",
           light: "hsl(var(--gold-light))",
         },
+        lilac: {
+          DEFAULT: "hsl(var(--lilac))",
+          soft: "hsl(var(--lilac-soft))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

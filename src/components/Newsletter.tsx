@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Mail, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSiteTexts } from "@/hooks/useSiteTexts";
+import lavenderField from "@/assets/lavender-field.jpg";
 
 const Newsletter = () => {
   const [email, setEmail] = useState("");
@@ -23,10 +24,20 @@ const Newsletter = () => {
   };
 
   return (
-    <section id="newsletter" className="py-20 md:py-28 bg-foreground relative overflow-hidden">
+    <section id="newsletter" className="py-20 md:py-28 relative overflow-hidden">
+      {/* Background Image with Heavy Blur */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src={lavenderField}
+          alt="Campo de lavanda"
+          className="w-full h-full object-cover blur-lg scale-110"
+        />
+        <div className="absolute inset-0 bg-foreground/70" />
+      </div>
+      
       {/* Decorative Elements */}
-      <div className="absolute top-10 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl" />
-      <div className="absolute bottom-10 right-10 w-96 h-96 bg-rose/10 rounded-full blur-3xl" />
+      <div className="absolute top-10 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl z-[1]" />
+      <div className="absolute bottom-10 right-10 w-96 h-96 bg-rose/10 rounded-full blur-3xl z-[1]" />
 
       <div className="container relative z-10">
         <div className="max-w-2xl mx-auto text-center">
