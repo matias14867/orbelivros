@@ -22,6 +22,7 @@ import { SiteTextsEditor } from "@/components/admin/SiteTextsEditor";
 import { SiteImagesEditor } from "@/components/admin/SiteImagesEditor";
 import CommentsManager from "@/components/admin/CommentsManager";
 import PromotionsManager from "@/components/admin/PromotionsManager";
+import MonthlyPicksManager from "@/components/admin/MonthlyPicksManager";
 import {
   Loader2,
   BookOpen,
@@ -33,6 +34,7 @@ import {
   MessageCircle,
   Palette,
   Tag,
+  Calendar,
   Plus,
   Trash2,
   RefreshCw,
@@ -405,10 +407,14 @@ const Admin = () => {
           </div>
 
           <Tabs defaultValue="books" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-9 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-10 lg:w-auto lg:inline-grid">
               <TabsTrigger value="books" className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
                 <span className="hidden sm:inline">Livros</span>
+              </TabsTrigger>
+              <TabsTrigger value="monthly" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                <span className="hidden sm:inline">Indicados</span>
               </TabsTrigger>
               <TabsTrigger value="promotions" className="flex items-center gap-2">
                 <Tag className="h-4 w-4" />
@@ -443,6 +449,11 @@ const Admin = () => {
                 <span className="hidden sm:inline">Testes</span>
               </TabsTrigger>
             </TabsList>
+
+            {/* Monthly Picks Tab */}
+            <TabsContent value="monthly">
+              <MonthlyPicksManager />
+            </TabsContent>
 
             {/* Books Tab */}
             <TabsContent value="books" className="space-y-6">

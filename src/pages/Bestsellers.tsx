@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import PromotionBanner from "@/components/PromotionBanner";
+import MonthlyPicks from "@/components/MonthlyPicks";
+import InspirationalQuote, { getRandomQuote } from "@/components/InspirationalQuote";
 import { useBestsellers } from "@/hooks/useBooks";
 import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
@@ -20,6 +22,7 @@ const Bestsellers = () => {
   const [loading, setLoading] = useState(true);
   const addItem = useCartStore((state) => state.addItem);
   const { isFavorite, toggleFavorite } = useFavorites();
+  const quote = useMemo(() => getRandomQuote(), []);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -103,6 +106,12 @@ const Bestsellers = () => {
 
           {/* Promotion Banner */}
           <PromotionBanner />
+
+          {/* Monthly Picks */}
+          <MonthlyPicks />
+
+          {/* Inspirational Quote */}
+          <InspirationalQuote quote={quote.quote} author={quote.author} className="my-8 bg-muted/30 rounded-xl" />
 
           {isLoading ? (
             <div className="flex justify-center py-20">

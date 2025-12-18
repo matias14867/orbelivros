@@ -1,11 +1,13 @@
 import { useSiteSettings } from './useSiteSettings';
 
 // Default images
-import heroImage from "@/assets/hero-books.jpg";
+import heroImage from "@/assets/hero-cozy-reading.jpg";
+import aboutImage from "@/assets/about-cozy.jpg";
 
 const DEFAULT_IMAGES = {
   logo: "",
   heroImage: heroImage,
+  aboutImage: aboutImage,
   favicon: "",
 };
 
