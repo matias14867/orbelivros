@@ -30,7 +30,7 @@ const Newsletter = () => {
         <img
           src={lavenderField}
           alt="Campo de lavanda"
-          className="w-full h-full object-cover blur-lg scale-110"
+          className="w-full h-full object-cover blur-sm scale-105"
         />
         <div className="absolute inset-0 bg-foreground/70" />
       </div>
