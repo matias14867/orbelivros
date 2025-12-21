@@ -182,12 +182,12 @@ export const CartDrawer = () => {
                   ) : (
                     <>
                       <CreditCard className="w-4 h-4 mr-2" />
-                      Pagar com PIX, Cartão ou Boleto
+                      Finalizar Compra
                     </>
                   )}
                 </Button>
                 <p className="text-xs text-center text-muted-foreground">
-                  Pagamento seguro via Stripe • PIX, Cartão ou Boleto
+                  Pagamento seguro via Stripe
                 </p>
               </div>
             </>
