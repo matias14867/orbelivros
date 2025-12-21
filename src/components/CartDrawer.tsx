@@ -8,18 +8,18 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ShoppingBag, Minus, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
+import { ShoppingBag, Minus, Plus, Trash2, CreditCard, Loader2 } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const CartDrawer = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { 
     items, 
-    isLoading, 
     updateQuantity, 
     removeItem, 
-    createCheckout,
     getTotalItems,
     getTotalPrice
   } = useCartStore();
@@ -27,19 +27,40 @@ export const CartDrawer = () => {
   const totalItems = getTotalItems();
   const totalPrice = getTotalPrice();
 
-  const handleCheckout = async () => {
+  const handleStripeCheckout = async () => {
+    if (items.length === 0) return;
+
+    setIsProcessing(true);
     try {
-      await createCheckout();
-      const checkoutUrl = useCartStore.getState().checkoutUrl;
-      if (checkoutUrl) {
-        window.open(checkoutUrl, '_blank');
+      // Format items for Stripe checkout
+      const checkoutItems = items.map(item => ({
+        name: item.product.node.title,
+        price: parseFloat(item.price.amount),
+        quantity: item.quantity,
+        image: item.product.node.images?.edges?.[0]?.node?.url || undefined,
+      }));
+
+      const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
+        body: { items: checkoutItems },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
         setIsOpen(false);
+      } else {
+        throw new Error('No checkout URL returned');
       }
     } catch (error) {
-      console.error('Checkout failed:', error);
+      console.error('Stripe checkout failed:', error);
       toast.error("Erro ao criar checkout", {
         description: "Por favor, tente novamente."
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -147,26 +168,26 @@ export const CartDrawer = () => {
                 </div>
                 
                 <Button 
-                  onClick={handleCheckout}
+                  onClick={handleStripeCheckout}
                   variant="hero"
                   className="w-full" 
                   size="lg"
-                  disabled={items.length === 0 || isLoading}
+                  disabled={items.length === 0 || isProcessing}
                 >
-                  {isLoading ? (
+                  {isProcessing ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Processando...
                     </>
                   ) : (
                     <>
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Finalizar Compra
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Pagar com PIX, Cartão ou Boleto
                     </>
                   )}
                 </Button>
                 <p className="text-xs text-center text-muted-foreground">
-                  Você será redirecionado para o checkout seguro
+                  Pagamento seguro via Stripe • PIX, Cartão ou Boleto
                 </p>
               </div>
             </>
