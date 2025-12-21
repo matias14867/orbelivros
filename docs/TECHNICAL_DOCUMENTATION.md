@@ -8,6 +8,7 @@
 4. [Hooks React](#hooks-react)
 5. [Stores (Zustand)](#stores-zustand)
 6. [Integrações](#integrações)
+7. [Testes Unitários](#testes-unitários)
 
 ---
 
@@ -658,6 +659,251 @@ interface CartStore {
 - Forms: React Hook Form + Zod validation
 - UI: Shadcn/ui + Tailwind CSS
 - Estado global: Zustand (apenas carrinho)
+
+---
+
+## Testes Unitários
+
+O projeto possui um ambiente completo de testes unitários configurado com Vitest, Testing Library e MSW (Mock Service Worker).
+
+### Stack de Testes
+
+| Ferramenta | Versão | Propósito |
+|------------|--------|-----------|
+| Vitest | ^4.0.16 | Test runner (compatível com Vite) |
+| @testing-library/react | ^16.3.1 | Renderização e queries de componentes |
+| @testing-library/jest-dom | ^6.9.1 | Matchers customizados para DOM |
+| jsdom | ^27.3.0 | Ambiente DOM para testes |
+| MSW | ^2.12.4 | Mock de requisições HTTP |
+
+---
+
+### Estrutura de Arquivos
+
+```
+src/test/
+├── setup.ts                    # Configuração global (mocks do Supabase + MSW)
+├── utils.tsx                   # Utilitários de renderização com providers
+├── mocks/
+│   ├── server.ts              # Servidor MSW para interceptação HTTP
+│   └── handlers.ts            # Handlers de mock (Supabase, Edge Functions, APIs)
+├── hooks/
+│   ├── useBooks.test.ts       # Testes do hook useBooks
+│   ├── useFavorites.test.ts   # Testes do hook useFavorites
+│   ├── useProfile.test.ts     # Testes do hook useProfile
+│   └── usePromotions.test.ts  # Testes do hook usePromotions
+├── edge-functions/
+│   ├── get-bestsellers.test.ts      # Testes da Edge Function get-bestsellers
+│   └── delete-user-account.test.ts  # Testes da Edge Function delete-user-account
+└── api/
+    └── supabase-queries.test.ts     # Testes de queries e simulação de RLS
+```
+
+---
+
+### Comandos Disponíveis
+
+```bash
+# Executar todos os testes (modo watch)
+npx vitest
+
+# Executar todos os testes uma vez
+npx vitest run
+
+# Executar testes com cobertura
+npx vitest run --coverage
+
+# Executar testes de um arquivo específico
+npx vitest run src/test/hooks/useBooks.test.ts
+
+# Executar testes que correspondem a um padrão
+npx vitest run --grep "useBooks"
+
+# Modo UI interativo
+npx vitest --ui
+```
+
+---
+
+### Configuração Principal
+
+**Arquivo**: `vitest.config.ts`
+
+```typescript
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: ['node_modules/', 'src/test/', '**/*.d.ts', 'src/main.tsx'],
+    },
+  },
+  resolve: {
+    alias: { '@': path.resolve(__dirname, './src') },
+  },
+});
+```
+
+---
+
+### Setup Global
+
+**Arquivo**: `src/test/setup.ts`
+
+O setup configura:
+
+1. **Mock do Supabase Client**: Todas as chamadas ao Supabase são mockadas
+2. **MSW Server**: Intercepta requisições HTTP para APIs externas
+3. **Lifecycle hooks**: `beforeAll`, `afterEach`, `afterAll` para gerenciamento do servidor
+
+```typescript
+// Mock do Supabase
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    auth: { getSession, getUser, signIn, signUp, signOut, onAuthStateChange },
+    from: () => ({ select, insert, update, delete, eq, single, order, limit }),
+    functions: { invoke },
+    storage: { from: () => ({ upload, getPublicUrl }) },
+  },
+}));
+
+// MSW Server lifecycle
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+```
+
+---
+
+### Handlers de Mock (MSW)
+
+**Arquivo**: `src/test/mocks/handlers.ts`
+
+Define respostas mockadas para:
+
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/rest/v1/books` | GET | Lista de livros |
+| `/rest/v1/favorites` | GET, POST, DELETE | CRUD de favoritos |
+| `/rest/v1/profiles` | GET, PATCH | Perfil do usuário |
+| `/rest/v1/promotions` | GET | Promoções ativas |
+| `/functions/v1/get-bestsellers` | GET | Edge Function bestsellers |
+| `/functions/v1/delete-user-account` | POST | Edge Function delete user |
+| `viacep.com.br` | GET | API de CEP |
+
+**Dados de Mock**:
+
+```typescript
+export const mockBooks = [
+  { id: '1', handle: 'dom-casmurro', title: 'Dom Casmurro', author: 'Machado de Assis', ... },
+  { id: '2', handle: '1984', title: '1984', author: 'George Orwell', ... },
+];
+
+export const mockUser = {
+  id: 'user-123',
+  email: 'test@example.com',
+};
+```
+
+---
+
+### Utilitários de Renderização
+
+**Arquivo**: `src/test/utils.tsx`
+
+Fornece wrapper com todos os providers necessários:
+
+```typescript
+const AllTheProviders = ({ children }) => (
+  <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        {children}
+      </TooltipProvider>
+    </QueryClientProvider>
+  </BrowserRouter>
+);
+
+export const renderWithProviders = (ui, options) =>
+  render(ui, { wrapper: AllTheProviders, ...options });
+```
+
+---
+
+### Exemplos de Testes
+
+#### Teste de Hook (useBooks)
+
+```typescript
+describe('useBooks', () => {
+  it('deve retornar lista de livros', async () => {
+    const { result } = renderHook(() => useBooks(), { wrapper: AllTheProviders });
+    
+    await waitFor(() => {
+      expect(result.current.books).toHaveLength(2);
+    });
+    
+    expect(result.current.books[0].title).toBe('Dom Casmurro');
+  });
+});
+```
+
+#### Teste de Edge Function
+
+```typescript
+describe('get-bestsellers', () => {
+  it('deve retornar bestsellers ordenados por vendas', async () => {
+    const response = await fetch('http://localhost/functions/v1/get-bestsellers?limit=5');
+    const data = await response.json();
+    
+    expect(data.bestsellers).toHaveLength(2);
+    expect(data.bestsellers[0].total_sold).toBeGreaterThanOrEqual(data.bestsellers[1].total_sold);
+  });
+});
+```
+
+#### Teste de Simulação RLS
+
+```typescript
+describe('RLS Policies Simulation', () => {
+  it('não deve permitir acesso a profiles de outros usuários', async () => {
+    const profiles = mockProfiles.filter(p => p.user_id === 'user-123');
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0].user_id).toBe('user-123');
+  });
+});
+```
+
+---
+
+### Cobertura de Testes
+
+O relatório de cobertura é gerado em:
+- **Console**: `text`
+- **JSON**: `coverage/coverage-final.json`
+- **HTML**: `coverage/index.html`
+
+**Exclusões da cobertura**:
+- `node_modules/`
+- `src/test/`
+- Arquivos de tipos (`*.d.ts`)
+- `src/main.tsx`
+- `src/vite-env.d.ts`
+
+---
+
+### Boas Práticas
+
+1. **Isolar testes**: Cada teste deve ser independente
+2. **Usar mocks apropriados**: Mockar apenas o necessário
+3. **Testar comportamento, não implementação**: Focar no resultado
+4. **Nomear descritivamente**: Usar padrão "deve fazer X quando Y"
+5. **Limpar estado**: `afterEach` para resetar mocks
 
 ---
 
