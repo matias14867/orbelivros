@@ -206,6 +206,31 @@ const Auth = () => {
     }
   };
 
+  // Funções de máscara
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 2) return numbers.length ? `(${numbers}` : '';
+    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    if (numbers.length <= 11) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+  };
+
+  const formatCEP = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 5) return numbers;
+    return `${numbers.slice(0, 5)}-${numbers.slice(5, 8)}`;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    setPhone(formatted);
+  };
+
+  const handleCEPChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCEP(e.target.value);
+    setAddressZip(formatted);
+  };
+
   const renderSignupFields = () => (
     <>
       {/* Nome e Telefone */}
@@ -231,7 +256,8 @@ const Auth = () => {
           type="tel"
           placeholder="(00) 00000-0000"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={handlePhoneChange}
+          maxLength={15}
           className={errors.phone ? "border-destructive" : ""}
         />
         {errors.phone && (
@@ -251,7 +277,8 @@ const Auth = () => {
               type="text"
               placeholder="00000-000"
               value={addressZip}
-              onChange={(e) => setAddressZip(e.target.value)}
+              onChange={handleCEPChange}
+              maxLength={9}
               className={errors.addressZip ? "border-destructive" : ""}
             />
             {errors.addressZip && (
@@ -290,30 +317,31 @@ const Auth = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="addressComplement">Complemento</Label>
-            <Input
-              id="addressComplement"
-              type="text"
-              placeholder="Apto, bloco, etc."
-              value={addressComplement}
-              onChange={(e) => setAddressComplement(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="addressNeighborhood">Bairro *</Label>
-            <Input
-              id="addressNeighborhood"
-              type="text"
-              placeholder="Seu bairro"
-              value={addressNeighborhood}
-              onChange={(e) => setAddressNeighborhood(e.target.value)}
-              className={errors.addressNeighborhood ? "border-destructive" : ""}
-            />
-            {errors.addressNeighborhood && (
-              <p className="text-sm text-destructive">{errors.addressNeighborhood}</p>
-            )}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="addressComplement">Complemento</Label>
+              <Input
+                id="addressComplement"
+                type="text"
+                placeholder="Apto, bloco, casa, etc."
+                value={addressComplement}
+                onChange={(e) => setAddressComplement(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressNeighborhood">Bairro *</Label>
+              <Input
+                id="addressNeighborhood"
+                type="text"
+                placeholder="Seu bairro"
+                value={addressNeighborhood}
+                onChange={(e) => setAddressNeighborhood(e.target.value)}
+                className={errors.addressNeighborhood ? "border-destructive" : ""}
+              />
+              {errors.addressNeighborhood && (
+                <p className="text-sm text-destructive">{errors.addressNeighborhood}</p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
