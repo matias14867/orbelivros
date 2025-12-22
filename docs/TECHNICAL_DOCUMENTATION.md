@@ -907,4 +907,53 @@ O relatório de cobertura é gerado em:
 
 ---
 
+## Deploy
+
+### GitHub Pages
+
+O projeto está configurado para deploy automático no GitHub Pages através de GitHub Actions.
+
+#### Arquivos de Configuração
+
+- **`.github/workflows/deploy.yml`**: Workflow de deploy automático
+- **`public/404.html`**: Página de redirecionamento para SPA
+- **`vite.config.ts`**: Configuração de build com `base: "/"`
+
+#### Secrets Necessários
+
+Configure os seguintes secrets no repositório GitHub (Settings → Secrets and variables → Actions):
+
+| Nome do Secret | Valor |
+|----------------|-------|
+| `VITE_SUPABASE_URL` | `https://meprfpbhzkijctzhvvvb.supabase.co` |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Chave anon do projeto Supabase |
+
+#### Configuração do GitHub Pages
+
+1. Acesse **Settings → Pages** no repositório
+2. Em "Build and deployment", selecione **GitHub Actions** como source
+3. O deploy será executado automaticamente a cada push na branch `main`
+
+#### Fluxo de Deploy
+
+```
+Push → GitHub Actions → npm ci → npm run build → Upload → Deploy
+```
+
+#### Domínio Personalizado
+
+O arquivo `CNAME` na raiz contém o domínio personalizado: `orbelivros.com.br`
+
+Para configurar:
+1. No GitHub: Settings → Pages → Custom domain
+2. No provedor DNS: Configure registros A ou CNAME apontando para GitHub Pages
+
+---
+
+### Lovable (Staging)
+
+O preview do projeto está disponível automaticamente no Lovable para desenvolvimento e testes.
+
+---
+
 *Última atualização: Dezembro 2024*
