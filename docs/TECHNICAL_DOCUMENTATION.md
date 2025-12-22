@@ -937,7 +937,7 @@ Configure os seguintes secrets no repositório GitHub (Settings → Secrets and 
 #### Fluxo de Deploy
 
 ```
-Push → GitHub Actions → npm install → npm run build → Upload → Deploy
+Push → GitHub Actions → npm install --legacy-peer-deps → npm run build → Upload → Deploy
 ```
 
 #### Domínio Personalizado
