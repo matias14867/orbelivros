@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BookOpen, Eye, EyeOff, Loader2 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 const loginSchema = z.object({
   email: z.string().trim().email({ message: "Email inválido" }),
@@ -387,7 +387,7 @@ const Auth = () => {
         <meta name="description" content="Acesse sua conta na Orbe Livros e descubra livros incríveis." />
       </Helmet>
 
-      <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-b from-primary/5 to-background p-4 py-8">
+      <div className="min-h-screen flex flex-col items-center bg-gradient-to-b from-primary/5 to-background p-4 py-8">
         <Link to="/" className="flex items-center gap-2 mb-6">
           <BookOpen className="h-8 w-8 text-primary" />
           <span className="font-serif text-3xl font-semibold text-foreground">
@@ -395,7 +395,7 @@ const Auth = () => {
           </span>
         </Link>
 
-        <div className={`w-full bg-card rounded-2xl shadow-card p-6 md:p-8 ${mode === "signup" ? "max-w-xl" : "max-w-md"}`}>
+        <div className={`w-full bg-card rounded-2xl shadow-card p-6 md:p-8 mb-8 ${mode === "signup" ? "max-w-xl" : "max-w-md"}`}>
           <h1 className="font-serif text-2xl font-bold text-center text-foreground mb-2">
             {getTitle()}
           </h1>
@@ -405,65 +405,61 @@ const Auth = () => {
 
           {mode === "signup" ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <ScrollArea className="max-h-[65vh] pr-4">
-                <div className="space-y-4 pb-2">
-                  {renderSignupFields()}
+              {renderSignupFields()}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className={errors.email ? "border-destructive" : ""}
-                    />
-                    {errors.email && (
-                      <p className="text-sm text-destructive">{errors.email}</p>
-                    )}
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={errors.email ? "border-destructive" : ""}
+                />
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
+                )}
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Senha *</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className={errors.password ? "border-destructive pr-10" : "pr-10"}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {errors.password && (
-                      <p className="text-sm text-destructive">{errors.password}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirmar senha *</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="••••••••"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className={errors.confirmPassword ? "border-destructive" : ""}
-                    />
-                    {errors.confirmPassword && (
-                      <p className="text-sm text-destructive">{errors.confirmPassword}</p>
-                    )}
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha *</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
-              </ScrollArea>
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar senha *</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={errors.confirmPassword ? "border-destructive" : ""}
+                />
+                {errors.confirmPassword && (
+                  <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                )}
+              </div>
 
               <Button type="submit" className="w-full mt-4" size="lg" disabled={isLoading}>
                 {isLoading ? (
