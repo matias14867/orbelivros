@@ -937,7 +937,7 @@ Configure os seguintes secrets no repositório GitHub (Settings → Secrets and 
 #### Fluxo de Deploy
 
 ```
-Push → GitHub Actions → npm ci → npm run build → Upload → Deploy
+Push → GitHub Actions → npm install → npm run build → Upload → Deploy
 ```
 
 #### Domínio Personalizado
@@ -956,4 +956,4 @@ O preview do projeto está disponível automaticamente no Lovable para desenvolv
 
 ---
 
-*Última atualização: Dezembro 2024*
+*Última atualização: Dezembro 2025*
