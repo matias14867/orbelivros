@@ -359,25 +359,25 @@ const Auth = () => {
         <meta name="description" content="Acesse sua conta na Orbe Livros e descubra livros incríveis." />
       </Helmet>
 
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-primary/5 to-background p-4">
-        <Link to="/" className="flex items-center gap-2 mb-8">
+      <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-b from-primary/5 to-background p-4 py-8">
+        <Link to="/" className="flex items-center gap-2 mb-6">
           <BookOpen className="h-8 w-8 text-primary" />
           <span className="font-serif text-3xl font-semibold text-foreground">
             Orbe <span className="text-primary">Livros</span>
           </span>
         </Link>
 
-        <div className={`w-full bg-card rounded-2xl shadow-card p-8 ${mode === "signup" ? "max-w-lg" : "max-w-md"}`}>
+        <div className={`w-full bg-card rounded-2xl shadow-card p-6 md:p-8 ${mode === "signup" ? "max-w-xl" : "max-w-md"}`}>
           <h1 className="font-serif text-2xl font-bold text-center text-foreground mb-2">
             {getTitle()}
           </h1>
-          <p className="text-muted-foreground text-center mb-6">
+          <p className="text-muted-foreground text-center mb-4">
             {getSubtitle()}
           </p>
 
           {mode === "signup" ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <ScrollArea className="max-h-[50vh] pr-4">
+              <ScrollArea className="max-h-[65vh] pr-4">
                 <div className="space-y-4 pb-2">
                   {renderSignupFields()}
 
