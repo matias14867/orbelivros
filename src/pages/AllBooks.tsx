@@ -5,7 +5,7 @@ import { useBooks, Book } from "@/hooks/useBooks";
 import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Loader2, BookOpen, Filter, Search, X, ShoppingCart, Heart } from "lucide-react";
+import { Loader2, BookOpen, Filter, Search, X, ShoppingCart, Heart, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,10 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ProductCard } from "@/components/ProductCard";
 import { useCartStore } from "@/stores/cartStore";
 import { useFavorites } from "@/hooks/useFavorites";
 import { toast } from "sonner";
+import { PriceFilter } from "@/components/PriceFilter";
 
 const CATEGORIES = [
   { value: "all", label: "Todas as Categorias" },
@@ -200,6 +206,7 @@ const AllBooks = () => {
   const [shopifyProducts, setShopifyProducts] = useState<ShopifyProduct[]>([]);
   const [shopifyLoading, setShopifyLoading] = useState(true);
   const [sortBy, setSortBy] = useState<string>("newest");
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
   
   const urlCategory = searchParams.get("categoria") || "all";
   const urlSearch = searchParams.get("busca") || "";
@@ -275,6 +282,27 @@ const AllBooks = () => {
     return products;
   }, [dbBooks, shopifyProducts]);
 
+  // Calculate min and max prices from products
+  const { minProductPrice, maxProductPrice } = useMemo(() => {
+    if (unifiedProducts.length === 0) return { minProductPrice: 0, maxProductPrice: 500 };
+    const prices = unifiedProducts.map((p) => p.price);
+    return {
+      minProductPrice: Math.floor(Math.min(...prices)),
+      maxProductPrice: Math.ceil(Math.max(...prices)),
+    };
+  }, [unifiedProducts]);
+
+  // Initialize price range when products load
+  useEffect(() => {
+    if (unifiedProducts.length > 0 && priceRange[0] === 0 && priceRange[1] === 500) {
+      setPriceRange([minProductPrice, maxProductPrice]);
+    }
+  }, [unifiedProducts, minProductPrice, maxProductPrice]);
+
+  const handlePriceChange = (min: number, max: number) => {
+    setPriceRange([min, max]);
+  };
+
   const handleCategoryChange = (value: string) => {
     setFilterCategory(value);
     const newParams = new URLSearchParams(searchParams);
@@ -300,6 +328,7 @@ const AllBooks = () => {
   const clearFilters = () => {
     setFilterCategory("all");
     setSearchQuery("");
+    setPriceRange([minProductPrice, maxProductPrice]);
     setSearchParams(new URLSearchParams());
   };
 
@@ -316,6 +345,11 @@ const AllBooks = () => {
         return title.includes(query) || author.includes(query) || description.includes(query);
       });
     }
+
+    // Filter by price range
+    result = result.filter((product) => {
+      return product.price >= priceRange[0] && product.price <= priceRange[1];
+    });
 
     // Filter by category
     if (filterCategory !== "all") {
@@ -351,7 +385,7 @@ const AllBooks = () => {
     }
 
     return result;
-  }, [unifiedProducts, sortBy, filterCategory, searchQuery]);
+  }, [unifiedProducts, sortBy, filterCategory, searchQuery, priceRange]);
 
   const loading = dbLoading || shopifyLoading;
 
@@ -412,7 +446,27 @@ const AllBooks = () => {
                   </span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-[200px] justify-start">
+                        <SlidersHorizontal className="h-4 w-4 mr-2" />
+                        {priceRange[0] !== minProductPrice || priceRange[1] !== maxProductPrice
+                          ? `R$ ${priceRange[0]} - R$ ${priceRange[1]}`
+                          : "Filtrar Preço"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-0" align="end">
+                      <PriceFilter
+                        minPrice={minProductPrice}
+                        maxPrice={maxProductPrice}
+                        currentMin={priceRange[0]}
+                        currentMax={priceRange[1]}
+                        onPriceChange={handlePriceChange}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
                   <Select value={filterCategory} onValueChange={handleCategoryChange}>
                     <SelectTrigger className="w-[200px]">
                       <SelectValue placeholder="Categoria" />
