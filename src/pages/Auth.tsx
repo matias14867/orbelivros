@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BookOpen, Eye, EyeOff, Loader2 } from "lucide-react";
+import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
 
 
 const loginSchema = z.object({
@@ -441,6 +442,7 @@ const Auth = () => {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                <PasswordStrengthIndicator password={password} />
                 {errors.password && (
                   <p className="text-sm text-destructive">{errors.password}</p>
                 )}
