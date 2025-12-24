@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, Heart, Search, User, LogOut, Shield, Crown } from "lucide-react";
 import { CartDrawer } from "./CartDrawer";
 import { SearchBar } from "./SearchBar";
+import { FavoritesDropdown } from "./FavoritesDropdown";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useSubscriberRole } from "@/hooks/useSubscriberRole";
@@ -80,14 +81,7 @@ const Header = () => {
               >
                 <Search className="h-5 w-5" />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="hidden md:flex"
-                onClick={() => navigate("/perfil")}
-              >
-                <Heart className="h-5 w-5" />
-              </Button>
+              <FavoritesDropdown />
               
               {user ? (
                 <DropdownMenu>
