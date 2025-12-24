@@ -5,6 +5,7 @@ import { useBooks, Book } from "@/hooks/useBooks";
 import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, BookOpen, Filter, Search, X, ShoppingCart, Heart, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -207,6 +208,9 @@ const AllBooks = () => {
   const [shopifyLoading, setShopifyLoading] = useState(true);
   const [sortBy, setSortBy] = useState<string>("newest");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
+  const [filterAuthor, setFilterAuthor] = useState<string>("all");
+  const [filterAvailability, setFilterAvailability] = useState<string>("all");
+  const [showOnlyInStock, setShowOnlyInStock] = useState(false);
   
   const urlCategory = searchParams.get("categoria") || "all";
   const urlSearch = searchParams.get("busca") || "";
@@ -282,6 +286,14 @@ const AllBooks = () => {
     return products;
   }, [dbBooks, shopifyProducts]);
 
+  // Extract unique authors from products
+  const uniqueAuthors = useMemo(() => {
+    const authors = unifiedProducts
+      .map((p) => p.author)
+      .filter((author): author is string => !!author && author.trim() !== "");
+    return Array.from(new Set(authors)).sort();
+  }, [unifiedProducts]);
+
   // Calculate min and max prices from products
   const { minProductPrice, maxProductPrice } = useMemo(() => {
     if (unifiedProducts.length === 0) return { minProductPrice: 0, maxProductPrice: 500 };
@@ -327,10 +339,20 @@ const AllBooks = () => {
 
   const clearFilters = () => {
     setFilterCategory("all");
+    setFilterAuthor("all");
+    setShowOnlyInStock(false);
     setSearchQuery("");
     setPriceRange([minProductPrice, maxProductPrice]);
     setSearchParams(new URLSearchParams());
   };
+
+  const hasActiveFilters = 
+    filterCategory !== "all" || 
+    filterAuthor !== "all" || 
+    showOnlyInStock || 
+    searchQuery.trim() !== "" ||
+    priceRange[0] !== minProductPrice || 
+    priceRange[1] !== maxProductPrice;
 
   const filteredProducts = useMemo(() => {
     let result = [...unifiedProducts];
@@ -360,8 +382,16 @@ const AllBooks = () => {
       });
     }
 
+    // Filter by author
+    if (filterAuthor !== "all") {
+      result = result.filter((product) => product.author === filterAuthor);
+    }
+
     // Filter only in-stock
-    result = result.filter((product) => product.inStock);
+    // Filter by availability
+    if (showOnlyInStock) {
+      result = result.filter((product) => product.inStock);
+    }
 
     // Sort
     switch (sortBy) {
@@ -385,7 +415,7 @@ const AllBooks = () => {
     }
 
     return result;
-  }, [unifiedProducts, sortBy, filterCategory, searchQuery, priceRange]);
+  }, [unifiedProducts, sortBy, filterCategory, filterAuthor, showOnlyInStock, searchQuery, priceRange]);
 
   const loading = dbLoading || shopifyLoading;
 
@@ -446,14 +476,14 @@ const AllBooks = () => {
                   </span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-wrap gap-3">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-[200px] justify-start">
+                      <Button variant="outline" className="w-[180px] justify-start">
                         <SlidersHorizontal className="h-4 w-4 mr-2" />
                         {priceRange[0] !== minProductPrice || priceRange[1] !== maxProductPrice
                           ? `R$ ${priceRange[0]} - R$ ${priceRange[1]}`
-                          : "Filtrar Preço"}
+                          : "Preço"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72 p-0" align="end">
@@ -468,7 +498,7 @@ const AllBooks = () => {
                   </Popover>
 
                   <Select value={filterCategory} onValueChange={handleCategoryChange}>
-                    <SelectTrigger className="w-[200px]">
+                    <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Categoria" />
                     </SelectTrigger>
                     <SelectContent>
@@ -480,8 +510,38 @@ const AllBooks = () => {
                     </SelectContent>
                   </Select>
 
+                  {uniqueAuthors.length > 0 && (
+                    <Select value={filterAuthor} onValueChange={setFilterAuthor}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Autor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os Autores</SelectItem>
+                        {uniqueAuthors.map((author) => (
+                          <SelectItem key={author} value={author}>
+                            {author}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  <div className="flex items-center space-x-2 px-3 py-2 border rounded-md bg-background">
+                    <Checkbox 
+                      id="in-stock" 
+                      checked={showOnlyInStock}
+                      onCheckedChange={(checked) => setShowOnlyInStock(checked === true)}
+                    />
+                    <label
+                      htmlFor="in-stock"
+                      className="text-sm font-medium leading-none cursor-pointer select-none"
+                    >
+                      Em estoque
+                    </label>
+                  </div>
+
                   <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-[200px]">
+                    <SelectTrigger className="w-[160px]">
                       <SelectValue placeholder="Ordenar por" />
                     </SelectTrigger>
                     <SelectContent>
@@ -491,6 +551,13 @@ const AllBooks = () => {
                       <SelectItem value="price-desc">Preço: Maior</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {hasActiveFilters && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+                      <X className="h-4 w-4 mr-1" />
+                      Limpar filtros
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
