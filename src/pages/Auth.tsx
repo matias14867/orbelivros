@@ -227,9 +227,33 @@ const Auth = () => {
     setPhone(formatted);
   };
 
-  const handleCEPChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [isLoadingCep, setIsLoadingCep] = useState(false);
+
+  const handleCEPChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCEP(e.target.value);
     setAddressZip(formatted);
+    
+    // Auto-fetch address when CEP is complete (8 digits)
+    const numbers = formatted.replace(/\D/g, '');
+    if (numbers.length === 8) {
+      setIsLoadingCep(true);
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${numbers}/json/`);
+        const data = await response.json();
+        
+        if (!data.erro) {
+          setAddressStreet(data.logradouro || '');
+          setAddressNeighborhood(data.bairro || '');
+          setAddressCity(data.localidade || '');
+          setAddressState(data.uf || '');
+          toast.success("Endereço preenchido automaticamente!");
+        }
+      } catch (error) {
+        console.error("Erro ao buscar CEP:", error);
+      } finally {
+        setIsLoadingCep(false);
+      }
+    }
   };
 
   const renderSignupFields = () => (
@@ -273,18 +297,24 @@ const Auth = () => {
         <div className="space-y-3">
           <div className="space-y-2">
             <Label htmlFor="addressZip">CEP *</Label>
-            <Input
-              id="addressZip"
-              type="text"
-              placeholder="00000-000"
-              value={addressZip}
-              onChange={handleCEPChange}
-              maxLength={9}
-              className={errors.addressZip ? "border-destructive" : ""}
-            />
+            <div className="relative">
+              <Input
+                id="addressZip"
+                type="text"
+                placeholder="00000-000"
+                value={addressZip}
+                onChange={handleCEPChange}
+                maxLength={9}
+                className={errors.addressZip ? "border-destructive" : ""}
+              />
+              {isLoadingCep && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
             {errors.addressZip && (
               <p className="text-sm text-destructive">{errors.addressZip}</p>
             )}
+            <p className="text-xs text-muted-foreground">Digite o CEP para preencher automaticamente</p>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
