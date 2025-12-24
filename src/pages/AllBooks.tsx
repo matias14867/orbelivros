@@ -6,7 +6,8 @@ import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, BookOpen, Filter, Search, X, ShoppingCart, Heart, SlidersHorizontal } from "lucide-react";
+import { useBookRatings } from "@/hooks/useBookRatings";
+import { Loader2, BookOpen, Filter, Search, X, ShoppingCart, Heart, SlidersHorizontal, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,8 @@ import { useCartStore } from "@/stores/cartStore";
 import { useFavorites } from "@/hooks/useFavorites";
 import { toast } from "sonner";
 import { PriceFilter } from "@/components/PriceFilter";
+import { RatingStars } from "@/components/RatingStars";
+import { BookRating } from "@/hooks/useBookRatings";
 
 const CATEGORIES = [
   { value: "all", label: "Todas as Categorias" },
@@ -45,7 +48,7 @@ const CATEGORIES = [
 ];
 
 // Component for database books
-const DatabaseBookCard = ({ book }: { book: Book }) => {
+const DatabaseBookCard = ({ book, rating }: { book: Book; rating?: BookRating }) => {
   const addItem = useCartStore((state) => state.addItem);
   const { toggleFavorite, isFavorite } = useFavorites();
 
@@ -169,7 +172,15 @@ const DatabaseBookCard = ({ book }: { book: Book }) => {
         {book.author && (
           <p className="text-sm text-muted-foreground mt-1">{book.author}</p>
         )}
-        <div className="flex items-center gap-2 mt-3">
+        {rating && (
+          <div className="mt-2">
+            <RatingStars 
+              rating={rating.average_rating} 
+              totalReviews={rating.total_reviews} 
+            />
+          </div>
+        )}
+        <div className="flex items-center gap-2 mt-2">
           <span className="text-lg font-bold text-primary">
             R$ {book.price.toFixed(2).replace(".", ",")}
           </span>
@@ -204,12 +215,13 @@ interface UnifiedProduct {
 const AllBooks = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { books: dbBooks, loading: dbLoading } = useBooks();
+  const { ratings: bookRatings, getRating } = useBookRatings();
   const [shopifyProducts, setShopifyProducts] = useState<ShopifyProduct[]>([]);
   const [shopifyLoading, setShopifyLoading] = useState(true);
   const [sortBy, setSortBy] = useState<string>("newest");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
   const [filterAuthor, setFilterAuthor] = useState<string>("all");
-  const [filterAvailability, setFilterAvailability] = useState<string>("all");
+  const [filterRating, setFilterRating] = useState<string>("all");
   const [showOnlyInStock, setShowOnlyInStock] = useState(false);
   
   const urlCategory = searchParams.get("categoria") || "all";
@@ -340,6 +352,7 @@ const AllBooks = () => {
   const clearFilters = () => {
     setFilterCategory("all");
     setFilterAuthor("all");
+    setFilterRating("all");
     setShowOnlyInStock(false);
     setSearchQuery("");
     setPriceRange([minProductPrice, maxProductPrice]);
@@ -349,6 +362,7 @@ const AllBooks = () => {
   const hasActiveFilters = 
     filterCategory !== "all" || 
     filterAuthor !== "all" || 
+    filterRating !== "all" ||
     showOnlyInStock || 
     searchQuery.trim() !== "" ||
     priceRange[0] !== minProductPrice || 
@@ -387,7 +401,15 @@ const AllBooks = () => {
       result = result.filter((product) => product.author === filterAuthor);
     }
 
-    // Filter only in-stock
+    // Filter by rating
+    if (filterRating !== "all") {
+      const minRating = parseInt(filterRating);
+      result = result.filter((product) => {
+        const rating = getRating(product.handle);
+        return rating && rating.average_rating >= minRating;
+      });
+    }
+
     // Filter by availability
     if (showOnlyInStock) {
       result = result.filter((product) => product.inStock);
@@ -404,6 +426,13 @@ const AllBooks = () => {
       case "name":
         result.sort((a, b) => a.title.localeCompare(b.title));
         break;
+      case "rating":
+        result.sort((a, b) => {
+          const ratingA = getRating(a.handle)?.average_rating || 0;
+          const ratingB = getRating(b.handle)?.average_rating || 0;
+          return ratingB - ratingA;
+        });
+        break;
       case "newest":
       default:
         // Featured first, then by title
@@ -415,7 +444,7 @@ const AllBooks = () => {
     }
 
     return result;
-  }, [unifiedProducts, sortBy, filterCategory, filterAuthor, showOnlyInStock, searchQuery, priceRange]);
+  }, [unifiedProducts, sortBy, filterCategory, filterAuthor, filterRating, showOnlyInStock, searchQuery, priceRange, getRating]);
 
   const loading = dbLoading || shopifyLoading;
 
@@ -526,6 +555,30 @@ const AllBooks = () => {
                     </Select>
                   )}
 
+                  <Select value={filterRating} onValueChange={setFilterRating}>
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue placeholder="Avaliação" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas Avaliações</SelectItem>
+                      <SelectItem value="5">
+                        <span className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> 5 estrelas
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="4">
+                        <span className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> 4+ estrelas
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="3">
+                        <span className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> 3+ estrelas
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+
                   <div className="flex items-center space-x-2 px-3 py-2 border rounded-md bg-background">
                     <Checkbox 
                       id="in-stock" 
@@ -549,6 +602,7 @@ const AllBooks = () => {
                       <SelectItem value="name">Nome (A-Z)</SelectItem>
                       <SelectItem value="price-asc">Preço: Menor</SelectItem>
                       <SelectItem value="price-desc">Preço: Maior</SelectItem>
+                      <SelectItem value="rating">Melhor Avaliados</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -595,7 +649,8 @@ const AllBooks = () => {
                   ) : (
                     <DatabaseBookCard 
                       key={product.id} 
-                      book={product.originalData as Book} 
+                      book={product.originalData as Book}
+                      rating={getRating(product.handle)}
                     />
                   )
                 ))}

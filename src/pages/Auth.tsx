@@ -17,8 +17,34 @@ const loginSchema = z.object({
   password: z.string().min(6, { message: "Senha deve ter no mínimo 6 caracteres" }),
 });
 
+// CPF validation function
+const validateCPF = (cpf: string): boolean => {
+  const cleanCPF = cpf.replace(/\D/g, '');
+  if (cleanCPF.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
+  
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(cleanCPF.charAt(i)) * (10 - i);
+  }
+  let remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cleanCPF.charAt(9))) return false;
+  
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(cleanCPF.charAt(i)) * (11 - i);
+  }
+  remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cleanCPF.charAt(10))) return false;
+  
+  return true;
+};
+
 const signUpSchema = loginSchema.extend({
   fullName: z.string().trim().min(2, { message: "Nome deve ter no mínimo 2 caracteres" }),
+  cpf: z.string().trim().min(14, { message: "CPF deve ter 11 dígitos" }).refine((val) => validateCPF(val), { message: "CPF inválido" }),
   confirmPassword: z.string(),
   phone: z.string().trim().min(10, { message: "Telefone deve ter no mínimo 10 dígitos" }),
   addressStreet: z.string().trim().min(3, { message: "Rua é obrigatória" }),
@@ -64,6 +90,7 @@ const Auth = () => {
   const [addressCity, setAddressCity] = useState("");
   const [addressState, setAddressState] = useState("");
   const [addressZip, setAddressZip] = useState("");
+  const [cpf, setCpf] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -88,6 +115,7 @@ const Auth = () => {
           email, 
           password, 
           fullName, 
+          cpf,
           confirmPassword,
           phone,
           addressStreet,
@@ -222,6 +250,19 @@ const Auth = () => {
     return `${numbers.slice(0, 5)}-${numbers.slice(5, 8)}`;
   };
 
+  const formatCPF = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+    if (numbers.length <= 9) return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
+    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`;
+  };
+
+  const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCPF(e.target.value);
+    setCpf(formatted);
+  };
+
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhone(e.target.value);
     setPhone(formatted);
@@ -274,20 +315,38 @@ const Auth = () => {
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="phone">Telefone *</Label>
-        <Input
-          id="phone"
-          type="tel"
-          placeholder="(00) 00000-0000"
-          value={phone}
-          onChange={handlePhoneChange}
-          maxLength={15}
-          className={errors.phone ? "border-destructive" : ""}
-        />
-        {errors.phone && (
-          <p className="text-sm text-destructive">{errors.phone}</p>
-        )}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="cpf">CPF *</Label>
+          <Input
+            id="cpf"
+            type="text"
+            placeholder="000.000.000-00"
+            value={cpf}
+            onChange={handleCPFChange}
+            maxLength={14}
+            className={errors.cpf ? "border-destructive" : ""}
+          />
+          {errors.cpf && (
+            <p className="text-sm text-destructive">{errors.cpf}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="phone">Telefone *</Label>
+          <Input
+            id="phone"
+            type="tel"
+            placeholder="(00) 00000-0000"
+            value={phone}
+            onChange={handlePhoneChange}
+            maxLength={15}
+            className={errors.phone ? "border-destructive" : ""}
+          />
+          {errors.phone && (
+            <p className="text-sm text-destructive">{errors.phone}</p>
+          )}
+        </div>
       </div>
 
       {/* Endereço */}
