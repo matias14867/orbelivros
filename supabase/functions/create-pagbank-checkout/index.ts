@@ -96,10 +96,15 @@ serve(async (req) => {
 
     logStep("Creating PagBank checkout", { referenceId, apiUrl });
 
+    // Ensure token has Bearer prefix
+    const authHeader = pagbankToken.startsWith("Bearer ") 
+      ? pagbankToken 
+      : `Bearer ${pagbankToken}`;
+
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        "Authorization": pagbankToken,
+        "Authorization": authHeader,
         "Content-Type": "application/json",
         "Accept": "application/json",
       },
