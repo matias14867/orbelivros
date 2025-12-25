@@ -27,12 +27,55 @@ export const CartDrawer = () => {
   const totalItems = getTotalItems();
   const totalPrice = getTotalPrice();
 
-  const handleStripeCheckout = async () => {
+  // ==========================================
+  // STRIPE CHECKOUT (comentado - mantido para uso futuro)
+  // ==========================================
+  // const handleStripeCheckout = async () => {
+  //   if (items.length === 0) return;
+
+  //   setIsProcessing(true);
+  //   try {
+  //     // Format items for Stripe checkout
+  //     const checkoutItems = items.map(item => ({
+  //       name: item.product.node.title,
+  //       price: parseFloat(item.price.amount),
+  //       quantity: item.quantity,
+  //       image: item.product.node.images?.edges?.[0]?.node?.url || undefined,
+  //     }));
+
+  //     const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
+  //       body: { items: checkoutItems },
+  //     });
+
+  //     if (error) {
+  //       throw new Error(error.message);
+  //     }
+
+  //     if (data?.url) {
+  //       window.open(data.url, '_blank');
+  //       setIsOpen(false);
+  //     } else {
+  //       throw new Error('No checkout URL returned');
+  //     }
+  //   } catch (error) {
+  //     console.error('Stripe checkout failed:', error);
+  //     toast.error("Erro ao criar checkout", {
+  //       description: "Por favor, tente novamente."
+  //     });
+  //   } finally {
+  //     setIsProcessing(false);
+  //   }
+  // };
+
+  // ==========================================
+  // PAGBANK CHECKOUT (ativo)
+  // ==========================================
+  const handlePagBankCheckout = async () => {
     if (items.length === 0) return;
 
     setIsProcessing(true);
     try {
-      // Format items for Stripe checkout
+      // Format items for PagBank checkout
       const checkoutItems = items.map(item => ({
         name: item.product.node.title,
         price: parseFloat(item.price.amount),
@@ -40,7 +83,7 @@ export const CartDrawer = () => {
         image: item.product.node.images?.edges?.[0]?.node?.url || undefined,
       }));
 
-      const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
+      const { data, error } = await supabase.functions.invoke('create-pagbank-checkout', {
         body: { items: checkoutItems },
       });
 
@@ -55,7 +98,7 @@ export const CartDrawer = () => {
         throw new Error('No checkout URL returned');
       }
     } catch (error) {
-      console.error('Stripe checkout failed:', error);
+      console.error('PagBank checkout failed:', error);
       toast.error("Erro ao criar checkout", {
         description: "Por favor, tente novamente."
       });
@@ -168,7 +211,7 @@ export const CartDrawer = () => {
                 </div>
                 
                 <Button 
-                  onClick={handleStripeCheckout}
+                  onClick={handlePagBankCheckout}
                   variant="hero"
                   className="w-full" 
                   size="lg"
@@ -187,7 +230,7 @@ export const CartDrawer = () => {
                   )}
                 </Button>
                 <p className="text-xs text-center text-muted-foreground">
-                  Pagamento seguro via Stripe
+                  Pagamento seguro via PagBank - PIX, Boleto ou Cartão
                 </p>
               </div>
             </>
