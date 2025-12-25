@@ -36,7 +36,7 @@ serve(async (req) => {
     if (!pagbankToken) {
       throw new Error("PAGBANK_TOKEN is not set");
     }
-    logStep("PagBank token verified");
+    logStep("PagBank token verified", { tokenLength: pagbankToken.length });
 
     const { items, customerEmail, customerName }: CheckoutRequest = await req.json();
     logStep("Request parsed", { itemCount: items?.length, hasEmail: !!customerEmail });
@@ -45,10 +45,7 @@ serve(async (req) => {
       throw new Error("No items provided for checkout");
     }
 
-    // Calculate total amount in centavos
-    const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity * 100), 0);
-    
-    // Create items array for PagBank
+    // Create items array for PagBank (amount in centavos)
     const pagbankItems = items.map((item, index) => ({
       reference_id: `item_${index + 1}`,
       name: item.name.substring(0, 64), // PagBank limit
@@ -56,7 +53,7 @@ serve(async (req) => {
       unit_amount: Math.round(item.price * 100), // Convert to centavos
     }));
 
-    logStep("Items prepared", { count: pagbankItems.length, totalAmount });
+    logStep("Items prepared", { count: pagbankItems.length });
 
     // Get origin for redirect URLs
     const origin = req.headers.get("origin") || "https://localhost:5173";
@@ -64,8 +61,9 @@ serve(async (req) => {
     // Generate unique reference ID
     const referenceId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    // PagBank Checkout API - Create order with checkout link
-    // Using sandbox API for testing, change to api.pagseguro.com for production
+    // PagBank Checkout API
+    // Sandbox: https://sandbox.api.pagseguro.com/checkouts
+    // Production: https://api.pagseguro.com/checkouts
     const apiUrl = "https://sandbox.api.pagseguro.com/checkouts";
     
     const checkoutPayload = {
@@ -91,18 +89,17 @@ serve(async (req) => {
       ],
       redirect_urls: {
         return_url: `${origin}/payment-success?reference_id=${referenceId}`,
-        cancel_url: `${origin}/payment-canceled`,
       },
       notification_urls: [],
       expiration_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
     };
 
-    logStep("Creating PagBank checkout", { referenceId });
+    logStep("Creating PagBank checkout", { referenceId, apiUrl });
 
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${pagbankToken}`,
+        "Authorization": pagbankToken,
         "Content-Type": "application/json",
         "Accept": "application/json",
       },
