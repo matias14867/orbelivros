@@ -44,7 +44,8 @@ const validateCPF = (cpf: string): boolean => {
 
 const signUpSchema = loginSchema.extend({
   fullName: z.string().trim().min(2, { message: "Nome deve ter no mínimo 2 caracteres" }),
-  cpf: z.string().trim().min(14, { message: "CPF deve ter 11 dígitos" }).refine((val) => validateCPF(val), { message: "CPF inválido" }),
+  // CPF validation kept but made optional - can be re-enabled later
+  cpf: z.string().optional(),
   confirmPassword: z.string(),
   phone: z.string().trim().min(10, { message: "Telefone deve ter no mínimo 10 dígitos" }),
   addressStreet: z.string().trim().min(3, { message: "Rua é obrigatória" }),
@@ -315,38 +316,39 @@ const Auth = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="cpf">CPF *</Label>
-          <Input
-            id="cpf"
-            type="text"
-            placeholder="000.000.000-00"
-            value={cpf}
-            onChange={handleCPFChange}
-            maxLength={14}
-            className={errors.cpf ? "border-destructive" : ""}
-          />
-          {errors.cpf && (
-            <p className="text-sm text-destructive">{errors.cpf}</p>
-          )}
-        </div>
+      {/* CPF field hidden but implementation kept for future use */}
+      {/* 
+      <div className="space-y-2">
+        <Label htmlFor="cpf">CPF *</Label>
+        <Input
+          id="cpf"
+          type="text"
+          placeholder="000.000.000-00"
+          value={cpf}
+          onChange={handleCPFChange}
+          maxLength={14}
+          className={errors.cpf ? "border-destructive" : ""}
+        />
+        {errors.cpf && (
+          <p className="text-sm text-destructive">{errors.cpf}</p>
+        )}
+      </div>
+      */}
 
-        <div className="space-y-2">
-          <Label htmlFor="phone">Telefone *</Label>
-          <Input
-            id="phone"
-            type="tel"
-            placeholder="(00) 00000-0000"
-            value={phone}
-            onChange={handlePhoneChange}
-            maxLength={15}
-            className={errors.phone ? "border-destructive" : ""}
-          />
-          {errors.phone && (
-            <p className="text-sm text-destructive">{errors.phone}</p>
-          )}
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="phone">Telefone *</Label>
+        <Input
+          id="phone"
+          type="tel"
+          placeholder="(00) 00000-0000"
+          value={phone}
+          onChange={handlePhoneChange}
+          maxLength={15}
+          className={errors.phone ? "border-destructive" : ""}
+        />
+        {errors.phone && (
+          <p className="text-sm text-destructive">{errors.phone}</p>
+        )}
       </div>
 
       {/* Endereço */}

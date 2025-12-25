@@ -68,17 +68,26 @@ serve(async (req) => {
     // Get origin for success/cancel URLs
     const origin = req.headers.get("origin") || "https://localhost:5173";
 
-    // Create checkout session - let Stripe auto-detect available payment methods
-    // This will show card by default, and PIX/Boleto if enabled in your Stripe dashboard
+    // Create checkout session with PIX and card payment methods explicitly enabled
+    // PIX requires BRL currency (already set in line_items)
     const session = await stripe.checkout.sessions.create({
       customer_email: customerEmail,
       line_items: lineItems,
       mode: "payment",
+      payment_method_types: ["card", "pix", "boleto"],
       success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/payment-canceled`,
       locale: "pt-BR",
+      payment_method_options: {
+        pix: {
+          expires_after_seconds: 86400, // 24 hours to complete PIX payment
+        },
+        boleto: {
+          expires_after_days: 3, // 3 days to pay boleto
+        },
+      },
       metadata: {
-        source: "leiacomigo_store",
+        source: "orbelivros_store",
       },
     });
 
