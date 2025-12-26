@@ -120,30 +120,30 @@ export const CartDrawer = () => {
         </Button>
       </SheetTrigger>
       
-      <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
-        <SheetHeader className="flex-shrink-0">
-          <SheetTitle className="font-serif">Seu Carrinho</SheetTitle>
-          <SheetDescription>
+      <SheetContent className="w-[90vw] max-w-lg flex flex-col h-[100dvh] p-3 sm:p-6">
+        <SheetHeader className="flex-shrink-0 pb-2">
+          <SheetTitle className="font-serif text-base sm:text-lg">Seu Carrinho</SheetTitle>
+          <SheetDescription className="text-xs sm:text-sm">
             {totalItems === 0 ? "Seu carrinho está vazio" : `${totalItems} item${totalItems !== 1 ? 's' : ''} no carrinho`}
           </SheetDescription>
         </SheetHeader>
         
-        <div className="flex flex-col flex-1 pt-6 min-h-0">
+        <div className="flex flex-col flex-1 pt-3 sm:pt-6 min-h-0 overflow-hidden">
           {items.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Seu carrinho está vazio</p>
-                <p className="text-sm text-muted-foreground mt-2">Adicione livros para continuar</p>
+                <ShoppingBag className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                <p className="text-muted-foreground text-sm sm:text-base">Seu carrinho está vazio</p>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-2">Adicione livros para continuar</p>
               </div>
             </div>
           ) : (
             <>
-              <div className="flex-1 overflow-y-auto pr-2 min-h-0">
-                <div className="space-y-4">
+              <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 min-h-0">
+                <div className="space-y-3 sm:space-y-4">
                   {items.map((item) => (
-                    <div key={item.variantId} className="flex gap-4 p-3 bg-card rounded-xl">
-                      <div className="w-16 h-20 bg-muted rounded-lg overflow-hidden flex-shrink-0">
+                    <div key={item.variantId} className="flex gap-2 sm:gap-4 p-2 sm:p-3 bg-card rounded-xl">
+                      <div className="w-12 h-16 sm:w-16 sm:h-20 bg-muted rounded-lg overflow-hidden flex-shrink-0">
                         {item.product.node.images?.edges?.[0]?.node && (
                           <img
                             src={item.product.node.images.edges[0].node.url}
@@ -154,46 +154,46 @@ export const CartDrawer = () => {
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-serif font-medium text-sm leading-tight truncate">
+                        <h4 className="font-serif font-medium text-xs sm:text-sm leading-tight line-clamp-2">
                           {item.product.node.title}
                         </h4>
                         {item.variantTitle !== "Default Title" && (
-                          <p className="text-xs text-muted-foreground mt-1">
+                          <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
                             {item.variantTitle}
                           </p>
                         )}
-                        <p className="font-semibold text-primary mt-2">
+                        <p className="font-semibold text-primary mt-1 sm:mt-2 text-sm sm:text-base">
                           R$ {parseFloat(item.price.amount).toFixed(2).replace(".", ",")}
                         </p>
                       </div>
                       
-                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                      <div className="flex flex-col items-end gap-1 sm:gap-2 flex-shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          className="h-6 w-6 sm:h-7 sm:w-7 text-muted-foreground hover:text-destructive"
                           onClick={() => removeItem(item.variantId)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
                         
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-0.5 sm:gap-1">
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-7 w-7"
+                            className="h-6 w-6 sm:h-7 sm:w-7"
                             onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                           </Button>
-                          <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                          <span className="w-6 sm:w-8 text-center text-xs sm:text-sm font-medium">{item.quantity}</span>
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-7 w-7"
+                            className="h-6 w-6 sm:h-7 sm:w-7"
                             onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                           </Button>
                         </div>
                       </div>
@@ -202,10 +202,10 @@ export const CartDrawer = () => {
                 </div>
               </div>
               
-              <div className="flex-shrink-0 space-y-4 pt-4 border-t border-border bg-background">
+              <div className="flex-shrink-0 space-y-3 sm:space-y-4 pt-3 sm:pt-4 border-t border-border bg-background mt-auto">
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-serif font-semibold">Total</span>
-                  <span className="text-xl font-bold text-primary">
+                  <span className="text-base sm:text-lg font-serif font-semibold">Total</span>
+                  <span className="text-lg sm:text-xl font-bold text-primary">
                     R$ {totalPrice.toFixed(2).replace(".", ",")}
                   </span>
                 </div>
@@ -213,7 +213,7 @@ export const CartDrawer = () => {
                 <Button 
                   onClick={handlePagBankCheckout}
                   variant="hero"
-                  className="w-full" 
+                  className="w-full min-h-[44px] text-sm sm:text-base" 
                   size="lg"
                   disabled={items.length === 0 || isProcessing}
                 >
@@ -229,7 +229,7 @@ export const CartDrawer = () => {
                     </>
                   )}
                 </Button>
-                <p className="text-xs text-center text-muted-foreground">
+                <p className="text-[10px] sm:text-xs text-center text-muted-foreground pb-safe">
                   Pagamento seguro via PagBank - PIX, Boleto ou Cartão
                 </p>
               </div>
