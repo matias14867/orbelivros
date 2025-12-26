@@ -61,8 +61,9 @@ serve(async (req) => {
     // Generate unique reference ID
     const referenceId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    // PagBank Checkout API - Production
-    const apiUrl = "https://api.pagseguro.com/checkouts";
+    // PagBank Checkout API - Sandbox (homologação)
+    // Production: https://api.pagseguro.com/checkouts
+    const apiUrl = "https://sandbox.api.pagseguro.com/checkouts";
     
     const checkoutPayload = {
       reference_id: referenceId,
