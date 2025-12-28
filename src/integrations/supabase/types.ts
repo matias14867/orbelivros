@@ -242,6 +242,30 @@ export type Database = {
           },
         ]
       }
+      pending_purchases: {
+        Row: {
+          created_at: string
+          id: string
+          items: Json
+          reference_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          items: Json
+          reference_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          items?: Json
+          reference_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address_city: string | null
@@ -457,6 +481,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_pending_purchases: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

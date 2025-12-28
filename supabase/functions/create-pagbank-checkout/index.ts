@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,7 @@ interface CartItem {
   price: number;
   quantity: number;
   image?: string;
+  handle?: string;
 }
 
 interface CheckoutRequest {
@@ -38,8 +40,25 @@ serve(async (req) => {
     }
     logStep("PagBank token verified", { tokenLength: pagbankToken.length });
 
+    // Initialize Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    // Try to get authenticated user (optional)
+    let userId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData } = await supabaseClient.auth.getUser(token);
+      userId = userData.user?.id || null;
+      logStep("User authenticated", { userId });
+    }
+
     const { items, customerEmail, customerName }: CheckoutRequest = await req.json();
-    logStep("Request parsed", { itemCount: items?.length, hasEmail: !!customerEmail });
+    logStep("Request parsed", { itemCount: items?.length, hasEmail: !!customerEmail, userId });
 
     if (!items || items.length === 0) {
       throw new Error("No items provided for checkout");
@@ -57,13 +76,35 @@ serve(async (req) => {
 
     // Get origin for redirect URLs
     const origin = req.headers.get("origin") || "https://localhost:5173";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 
     // Generate unique reference ID
     const referenceId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
+    // Store pending purchase for webhook processing
+    if (userId) {
+      const { error: pendingError } = await supabaseClient
+        .from('pending_purchases')
+        .insert({
+          reference_id: referenceId,
+          user_id: userId,
+          items: items,
+          created_at: new Date().toISOString(),
+        });
+
+      if (pendingError) {
+        logStep("Warning: Could not store pending purchase", { error: pendingError });
+      } else {
+        logStep("Pending purchase stored", { referenceId, userId });
+      }
+    }
+
     // PagBank Checkout API - Sandbox (homologação)
     // Production: https://api.pagseguro.com/checkouts
     const apiUrl = "https://sandbox.api.pagseguro.com/checkouts";
+    
+    // Webhook URL for payment notifications
+    const webhookUrl = `${supabaseUrl}/functions/v1/pagbank-webhook`;
     
     const checkoutPayload = {
       reference_id: referenceId,
@@ -89,21 +130,21 @@ serve(async (req) => {
       redirect_urls: {
         return_url: `${origin}/payment-success?reference_id=${referenceId}`,
       },
-      notification_urls: [],
+      notification_urls: [webhookUrl],
       expiration_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
     };
 
-    logStep("Creating PagBank checkout", { referenceId, apiUrl });
+    logStep("Creating PagBank checkout", { referenceId, apiUrl, webhookUrl });
 
     // Ensure token has Bearer prefix
-    const authHeader = pagbankToken.startsWith("Bearer ") 
+    const authHeaderPagbank = pagbankToken.startsWith("Bearer ") 
       ? pagbankToken 
       : `Bearer ${pagbankToken}`;
 
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        "Authorization": authHeader,
+        "Authorization": authHeaderPagbank,
         "Content-Type": "application/json",
         "Accept": "application/json",
       },
