@@ -75,12 +75,13 @@ export const CartDrawer = () => {
 
     setIsProcessing(true);
     try {
-      // Format items for PagBank checkout
+      // Format items for PagBank checkout with handle for purchase history
       const checkoutItems = items.map(item => ({
         name: item.product.node.title,
         price: parseFloat(item.price.amount),
         quantity: item.quantity,
         image: item.product.node.images?.edges?.[0]?.node?.url || undefined,
+        handle: item.product.node.handle,
       }));
 
       const { data, error } = await supabase.functions.invoke('create-pagbank-checkout', {

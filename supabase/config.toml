@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.create-pagbank-checkout]
 verify_jwt = false
+
+[functions.pagbank-webhook]
+verify_jwt = false
