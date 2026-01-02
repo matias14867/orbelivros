@@ -12,8 +12,16 @@ import { BookOpen, Eye, EyeOff, Loader2 } from "lucide-react";
 import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
 
 
+// Strong password validation
+const passwordSchema = z.string()
+  .min(8, { message: "Senha deve ter no mínimo 8 caracteres" })
+  .regex(/[a-z]/, { message: "Senha deve conter pelo menos uma letra minúscula" })
+  .regex(/[A-Z]/, { message: "Senha deve conter pelo menos uma letra maiúscula" })
+  .regex(/[0-9]/, { message: "Senha deve conter pelo menos um número" })
+  .regex(/[^a-zA-Z0-9]/, { message: "Senha deve conter pelo menos um caractere especial (!@#$%^&*)" });
+
 const loginSchema = z.object({
-  email: z.string().trim().email({ message: "Email inválido" }),
+  email: z.string().trim().toLowerCase().email({ message: "Email inválido" }).max(254, { message: "Email muito longo" }),
   password: z.string().min(6, { message: "Senha deve ter no mínimo 6 caracteres" }),
 });
 
@@ -42,26 +50,37 @@ const validateCPF = (cpf: string): boolean => {
   return true;
 };
 
-const signUpSchema = loginSchema.extend({
-  fullName: z.string().trim().min(2, { message: "Nome deve ter no mínimo 2 caracteres" }),
-  // CPF validation kept but made optional - can be re-enabled later
+// Sanitize input to prevent XSS
+const sanitizeInput = (input: string, maxLength: number = 255): string => {
+  return input
+    .slice(0, maxLength)
+    .replace(/[<>]/g, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+=/gi, '')
+    .trim();
+};
+
+const signUpSchema = z.object({
+  email: z.string().trim().toLowerCase().email({ message: "Email inválido" }).max(254, { message: "Email muito longo" }),
+  password: passwordSchema,
+  fullName: z.string().trim().min(2, { message: "Nome deve ter no mínimo 2 caracteres" }).max(100, { message: "Nome muito longo" }),
   cpf: z.string().optional(),
   confirmPassword: z.string(),
-  phone: z.string().trim().min(10, { message: "Telefone deve ter no mínimo 10 dígitos" }),
-  addressStreet: z.string().trim().min(3, { message: "Rua é obrigatória" }),
-  addressNumber: z.string().trim().min(1, { message: "Número é obrigatório" }),
-  addressComplement: z.string().optional(),
-  addressNeighborhood: z.string().trim().min(2, { message: "Bairro é obrigatório" }),
-  addressCity: z.string().trim().min(2, { message: "Cidade é obrigatória" }),
+  phone: z.string().trim().min(10, { message: "Telefone deve ter no mínimo 10 dígitos" }).max(20, { message: "Telefone inválido" }),
+  addressStreet: z.string().trim().min(3, { message: "Rua é obrigatória" }).max(200, { message: "Endereço muito longo" }),
+  addressNumber: z.string().trim().min(1, { message: "Número é obrigatório" }).max(20, { message: "Número inválido" }),
+  addressComplement: z.string().max(100, { message: "Complemento muito longo" }).optional(),
+  addressNeighborhood: z.string().trim().min(2, { message: "Bairro é obrigatório" }).max(100, { message: "Bairro muito longo" }),
+  addressCity: z.string().trim().min(2, { message: "Cidade é obrigatória" }).max(100, { message: "Cidade muito longa" }),
   addressState: z.string().trim().length(2, { message: "Estado deve ter 2 letras (ex: SP)" }),
-  addressZip: z.string().trim().min(8, { message: "CEP deve ter 8 dígitos" }),
+  addressZip: z.string().trim().min(8, { message: "CEP deve ter 8 dígitos" }).max(10, { message: "CEP inválido" }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
 });
 
 const resetSchema = z.object({
-  email: z.string().trim().email({ message: "Email inválido" }),
+  email: z.string().trim().toLowerCase().email({ message: "Email inválido" }).max(254, { message: "Email muito longo" }),
 });
 
 type AuthMode = "login" | "signup" | "reset";
