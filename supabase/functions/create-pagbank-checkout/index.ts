@@ -83,22 +83,21 @@ serve(async (req) => {
     // Generate unique reference ID
     const referenceId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    // Store pending purchase for webhook processing
-    if (userId) {
-      const { error: pendingError } = await supabaseClient
-        .from('pending_purchases')
-        .insert({
-          reference_id: referenceId,
-          user_id: userId,
-          items: items,
-          created_at: new Date().toISOString(),
-        });
+    // Store pending purchase for webhook processing (always store, even for anonymous users)
+    // Use a placeholder user_id if not logged in - we'll try to record via client-side as backup
+    const { error: pendingError } = await supabaseClient
+      .from('pending_purchases')
+      .insert({
+        reference_id: referenceId,
+        user_id: userId || '00000000-0000-0000-0000-000000000000', // Placeholder for anonymous
+        items: items,
+        created_at: new Date().toISOString(),
+      });
 
-      if (pendingError) {
-        logStep("Warning: Could not store pending purchase", { error: pendingError });
-      } else {
-        logStep("Pending purchase stored", { referenceId, userId });
-      }
+    if (pendingError) {
+      logStep("Warning: Could not store pending purchase", { error: pendingError });
+    } else {
+      logStep("Pending purchase stored", { referenceId, userId: userId || 'anonymous' });
     }
 
     // PagBank Checkout API - Production

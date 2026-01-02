@@ -25,7 +25,42 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const body = await req.json();
+    // PagBank sometimes sends non-JSON notifications (like URL-encoded form data)
+    const contentType = req.headers.get("content-type") || "";
+    let body: any;
+    
+    if (contentType.includes("application/json")) {
+      body = await req.json();
+    } else {
+      // Try to parse as JSON anyway, if fails, try form data
+      const text = await req.text();
+      try {
+        body = JSON.parse(text);
+      } catch {
+        // If it's form-encoded or other format, parse it
+        if (contentType.includes("application/x-www-form-urlencoded") || text.includes("=")) {
+          const params = new URLSearchParams(text);
+          body = Object.fromEntries(params.entries());
+          // Try to parse notificationCode for older PagBank format
+          if (body.notificationCode) {
+            logStep("Legacy notification received", { notificationCode: body.notificationCode });
+            // Legacy notifications require fetching order details from PagBank API
+            // For now, acknowledge receipt
+            return new Response(JSON.stringify({ received: true, legacy: true }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          }
+        } else {
+          logStep("Unknown content format", { contentType, textPreview: text.substring(0, 100) });
+          return new Response(JSON.stringify({ received: true, unknown_format: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+      }
+    }
+    
     logStep("Webhook payload", body);
 
     // PagBank sends different notification types
