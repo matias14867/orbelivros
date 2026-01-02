@@ -133,13 +133,18 @@ serve(async (req) => {
       expiration_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
     };
 
-    logStep("Creating PagBank checkout", { referenceId, apiUrl, webhookUrl });
-
     // Ensure token has Bearer prefix
     const authHeaderPagbank = pagbankToken.startsWith("Bearer ") 
       ? pagbankToken 
       : `Bearer ${pagbankToken}`;
 
+    logStep("Creating PagBank checkout", { 
+      referenceId, 
+      apiUrl, 
+      webhookUrl,
+      tokenPreview: `${pagbankToken.substring(0, 10)}...${pagbankToken.substring(pagbankToken.length - 10)}`,
+      authHeaderPreview: `${authHeaderPagbank.substring(0, 17)}...`,
+    });
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
