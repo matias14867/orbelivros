@@ -1,5 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { 
+  checkRateLimit, 
+  getClientIP, 
+  sanitizeString, 
+  isValidUUID,
+  logSecurityEvent 
+} from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,8 +23,20 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const clientIP = getClientIP(req);
+
   try {
-    logStep("Webhook received");
+    // Rate limiting: 50 webhook calls per minute per IP
+    const rateLimit = checkRateLimit(`webhook:${clientIP}`, 50, 60000);
+    if (!rateLimit.allowed) {
+      logSecurityEvent("RATE_LIMIT_EXCEEDED", { ip: clientIP, endpoint: "pagbank-webhook" });
+      return new Response(JSON.stringify({ error: "Too many requests" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 429,
+      });
+    }
+
+    logStep("Webhook received", { ip: clientIP });
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -44,8 +63,6 @@ serve(async (req) => {
           // Try to parse notificationCode for older PagBank format
           if (body.notificationCode) {
             logStep("Legacy notification received", { notificationCode: body.notificationCode });
-            // Legacy notifications require fetching order details from PagBank API
-            // For now, acknowledge receipt
             return new Response(JSON.stringify({ received: true, legacy: true }), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
               status: 200,
@@ -61,18 +78,24 @@ serve(async (req) => {
       }
     }
     
-    logStep("Webhook payload", body);
+    logStep("Webhook payload received");
 
-    // PagBank sends different notification types
-    // We're interested in CHECKOUT.PAID or similar payment confirmation events
+    // Validate and sanitize reference_id
+    const referenceId = sanitizeString(body.reference_id || "", 100);
+    if (!referenceId || !referenceId.startsWith("order_")) {
+      logSecurityEvent("INVALID_REFERENCE_ID", { referenceId: body.reference_id, ip: clientIP });
+      return new Response(JSON.stringify({ received: true, processed: false, reason: "invalid_reference" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     const notificationType = body.notificationType || body.event || body.type;
     const charges = body.charges || [];
-    const referenceId = body.reference_id;
 
     logStep("Notification type", { notificationType, referenceId, chargesCount: charges.length });
 
     // Check if payment was successful
-    // PagBank sends status PAID when payment is confirmed
     const isPaid = charges.some((charge: any) => 
       charge.status === "PAID" || charge.status === "AUTHORIZED"
     ) || body.status === "PAID";
@@ -102,18 +125,37 @@ serve(async (req) => {
       });
     }
 
-    logStep("Found pending purchase", { userId: pendingPurchase.user_id, itemsCount: pendingPurchase.items?.length });
+    // Validate user_id format
+    const userId = pendingPurchase.user_id;
+    if (!userId || !isValidUUID(userId)) {
+      logSecurityEvent("INVALID_USER_ID", { userId, referenceId, ip: clientIP });
+      return new Response(JSON.stringify({ received: true, processed: false, reason: "invalid_user" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
 
-    // Insert each item into purchase history
+    // Skip if it's the anonymous placeholder
+    if (userId === '00000000-0000-0000-0000-000000000000') {
+      logStep("Anonymous purchase - skipping webhook processing (client-side will handle)");
+      return new Response(JSON.stringify({ received: true, processed: false, reason: "anonymous_user" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    logStep("Found pending purchase", { userId, itemsCount: pendingPurchase.items?.length });
+
+    // Validate and sanitize items
     const items = pendingPurchase.items || [];
     const purchaseRecords = items.map((item: any) => ({
-      user_id: pendingPurchase.user_id,
+      user_id: userId,
       order_id: referenceId,
-      product_handle: item.handle || item.name.toLowerCase().replace(/\s+/g, '-'),
-      product_title: item.name,
-      product_image: item.image || null,
-      product_price: item.price,
-      quantity: item.quantity,
+      product_handle: sanitizeString(item.handle || item.name?.toLowerCase().replace(/\s+/g, '-') || '', 255),
+      product_title: sanitizeString(item.name || '', 255),
+      product_image: sanitizeString(item.image || '', 500),
+      product_price: Math.max(0, Math.min(parseFloat(item.price) || 0, 999999)),
+      quantity: Math.max(1, Math.min(parseInt(item.quantity) || 1, 100)),
     }));
 
     if (purchaseRecords.length > 0) {
@@ -127,6 +169,7 @@ serve(async (req) => {
       }
 
       logStep("Purchase history saved successfully", { recordsCount: purchaseRecords.length });
+      logSecurityEvent("PURCHASE_RECORDED", { userId, referenceId, itemCount: purchaseRecords.length });
     }
 
     // Clean up pending purchase
@@ -144,8 +187,9 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
+    logSecurityEvent("WEBHOOK_ERROR", { error: errorMessage, ip: clientIP });
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "Internal error" }), // Don't expose internal errors
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,

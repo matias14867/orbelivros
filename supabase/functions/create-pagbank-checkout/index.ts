@@ -1,5 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { 
+  checkRateLimit, 
+  getClientIP, 
+  sanitizeString, 
+  isValidPrice,
+  isValidQuantity,
+  logSecurityEvent 
+} from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,14 +33,63 @@ const logStep = (step: string, details?: unknown) => {
   console.log(`[CREATE-PAGBANK-CHECKOUT] ${step}${detailsStr}`);
 };
 
+// Validate and sanitize cart items
+function validateAndSanitizeItems(items: any[]): CartItem[] {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("Invalid items array");
+  }
+
+  if (items.length > 50) {
+    throw new Error("Too many items in cart");
+  }
+
+  return items.map((item, index) => {
+    const name = sanitizeString(item.name || '', 64);
+    const price = parseFloat(item.price);
+    const quantity = parseInt(item.quantity);
+
+    if (!name || name.length < 2) {
+      throw new Error(`Item ${index + 1} has invalid name`);
+    }
+
+    if (!isValidPrice(price)) {
+      throw new Error(`Item ${index + 1} has invalid price`);
+    }
+
+    if (!isValidQuantity(quantity)) {
+      throw new Error(`Item ${index + 1} has invalid quantity`);
+    }
+
+    return {
+      name,
+      price,
+      quantity,
+      image: sanitizeString(item.image || '', 500),
+      handle: sanitizeString(item.handle || '', 255),
+    };
+  });
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const clientIP = getClientIP(req);
+
   try {
-    logStep("Function started");
+    // Rate limiting: 20 checkout attempts per minute per IP
+    const rateLimit = checkRateLimit(`checkout:${clientIP}`, 20, 60000);
+    if (!rateLimit.allowed) {
+      logSecurityEvent("RATE_LIMIT_EXCEEDED", { ip: clientIP, endpoint: "create-pagbank-checkout" });
+      return new Response(JSON.stringify({ error: "Muitas tentativas. Aguarde um momento." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 429,
+      });
+    }
+
+    logStep("Function started", { ip: clientIP });
 
     let pagbankToken = Deno.env.get("PAGBANK_TOKEN");
     if (!pagbankToken) {
@@ -40,7 +97,7 @@ serve(async (req) => {
     }
     // Remove any whitespace from token
     pagbankToken = pagbankToken.trim();
-    logStep("PagBank token verified", { tokenLength: pagbankToken.length });
+    logStep("PagBank token verified");
 
     // Initialize Supabase client
     const supabaseClient = createClient(
@@ -59,37 +116,61 @@ serve(async (req) => {
       logStep("User authenticated", { userId });
     }
 
-    const { items, customerEmail, customerName }: CheckoutRequest = await req.json();
-    logStep("Request parsed", { itemCount: items?.length, hasEmail: !!customerEmail, userId });
+    // Parse and validate request body
+    let requestBody: CheckoutRequest;
+    try {
+      requestBody = await req.json();
+    } catch {
+      throw new Error("Invalid JSON body");
+    }
 
-    if (!items || items.length === 0) {
-      throw new Error("No items provided for checkout");
+    const { items: rawItems, customerEmail, customerName } = requestBody;
+    
+    // Validate and sanitize items
+    const items = validateAndSanitizeItems(rawItems);
+    logStep("Request validated", { itemCount: items.length, userId });
+
+    // Calculate total for logging/validation
+    const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    if (totalAmount > 100000) { // Max R$ 100,000
+      logSecurityEvent("HIGH_VALUE_ORDER", { totalAmount, userId, ip: clientIP });
     }
 
     // Create items array for PagBank (amount in centavos)
     const pagbankItems = items.map((item, index) => ({
       reference_id: `item_${index + 1}`,
-      name: item.name.substring(0, 64), // PagBank limit
+      name: item.name.substring(0, 64),
       quantity: item.quantity,
-      unit_amount: Math.round(item.price * 100), // Convert to centavos
+      unit_amount: Math.round(item.price * 100),
     }));
 
     logStep("Items prepared", { count: pagbankItems.length });
 
-    // Get origin for redirect URLs
-    const origin = req.headers.get("origin") || "https://localhost:5173";
+    // Get origin for redirect URLs - validate it's from allowed domains
+    const origin = req.headers.get("origin") || "";
+    const allowedOrigins = [
+      "https://localhost",
+      "http://localhost",
+      "https://orbelivros.com.br",
+      "https://www.orbelivros.com.br",
+      "https://preview--",
+      "https://id-preview--",
+    ];
+    
+    const isAllowedOrigin = allowedOrigins.some(allowed => origin.startsWith(allowed));
+    const safeOrigin = isAllowedOrigin ? origin : "https://orbelivros.com.br";
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 
-    // Generate unique reference ID
-    const referenceId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    // Generate unique reference ID with timestamp for uniqueness
+    const referenceId = `order_${Date.now()}_${crypto.randomUUID().substring(0, 8)}`;
 
-    // Store pending purchase for webhook processing (always store, even for anonymous users)
-    // Use a placeholder user_id if not logged in - we'll try to record via client-side as backup
+    // Store pending purchase for webhook processing
     const { error: pendingError } = await supabaseClient
       .from('pending_purchases')
       .insert({
         reference_id: referenceId,
-        user_id: userId || '00000000-0000-0000-0000-000000000000', // Placeholder for anonymous
+        user_id: userId || '00000000-0000-0000-0000-000000000000',
         items: items,
         created_at: new Date().toISOString(),
       });
@@ -125,7 +206,7 @@ serve(async (req) => {
         },
       ],
       soft_descriptor: "Aconchego",
-      redirect_url: `${origin}/payment-success?reference_id=${referenceId}`,
+      redirect_url: `${safeOrigin}/payment-success?reference_id=${referenceId}`,
       payment_notification_urls: [webhookUrl],
       notification_urls: [],
     };
@@ -135,13 +216,8 @@ serve(async (req) => {
       ? pagbankToken 
       : `Bearer ${pagbankToken}`;
 
-    logStep("Creating PagBank checkout", { 
-      referenceId, 
-      apiUrl, 
-      webhookUrl,
-      tokenPreview: `${pagbankToken.substring(0, 10)}...${pagbankToken.substring(pagbankToken.length - 10)}`,
-      authHeaderPreview: `${authHeaderPagbank.substring(0, 17)}...`,
-    });
+    logStep("Creating PagBank checkout", { referenceId, webhookUrl });
+
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
@@ -157,14 +233,12 @@ serve(async (req) => {
 
     if (!response.ok) {
       logStep("PagBank error response", { body: responseText });
-      throw new Error(`PagBank API error: ${response.status} - ${responseText}`);
+      logSecurityEvent("PAGBANK_ERROR", { status: response.status, referenceId, ip: clientIP });
+      throw new Error(`Erro ao criar checkout: ${response.status}`);
     }
 
     const checkoutData = JSON.parse(responseText);
-    logStep("Checkout created successfully", { 
-      checkoutId: checkoutData.id,
-      links: checkoutData.links 
-    });
+    logStep("Checkout created successfully", { checkoutId: checkoutData.id });
 
     // Find the payment link from the response
     const paymentLink = checkoutData.links?.find(
@@ -174,6 +248,8 @@ serve(async (req) => {
     if (!paymentLink) {
       throw new Error("Payment link not found in PagBank response");
     }
+
+    logSecurityEvent("CHECKOUT_CREATED", { referenceId, userId, ip: clientIP });
 
     return new Response(
       JSON.stringify({ 
@@ -189,11 +265,18 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
+    logSecurityEvent("CHECKOUT_ERROR", { error: errorMessage, ip: clientIP });
+    
+    // Return user-friendly error message
+    const userMessage = errorMessage.includes("Invalid") || errorMessage.includes("invalid")
+      ? errorMessage
+      : "Erro ao processar checkout. Tente novamente.";
+    
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: userMessage }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
+        status: 400,
       }
     );
   }
