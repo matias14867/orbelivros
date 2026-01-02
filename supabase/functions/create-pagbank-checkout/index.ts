@@ -34,10 +34,12 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const pagbankToken = Deno.env.get("PAGBANK_TOKEN");
+    let pagbankToken = Deno.env.get("PAGBANK_TOKEN");
     if (!pagbankToken) {
       throw new Error("PAGBANK_TOKEN is not set");
     }
+    // Remove any whitespace from token
+    pagbankToken = pagbankToken.trim();
     logStep("PagBank token verified", { tokenLength: pagbankToken.length });
 
     // Initialize Supabase client
