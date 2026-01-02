@@ -8,14 +8,18 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ShoppingBag, Minus, Plus, Trash2, CreditCard, Loader2 } from "lucide-react";
+import { ShoppingBag, Minus, Plus, Trash2, CreditCard, Loader2, LogIn } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 export const CartDrawer = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const { 
     items, 
     updateQuantity, 
@@ -72,6 +76,16 @@ export const CartDrawer = () => {
   // ==========================================
   const handlePagBankCheckout = async () => {
     if (items.length === 0) return;
+
+    // Verificar se usuário está logado
+    if (!user) {
+      toast.error("Faça login para continuar", {
+        description: "Você precisa estar logado para finalizar a compra."
+      });
+      setIsOpen(false);
+      navigate("/auth");
+      return;
+    }
 
     setIsProcessing(true);
     try {
@@ -211,25 +225,40 @@ export const CartDrawer = () => {
                   </span>
                 </div>
                 
-                <Button 
-                  onClick={handlePagBankCheckout}
-                  variant="hero"
-                  className="w-full min-h-[44px] text-sm sm:text-base" 
-                  size="lg"
-                  disabled={items.length === 0 || isProcessing}
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Processando...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      Finalizar Compra
-                    </>
-                  )}
-                </Button>
+                {!user ? (
+                  <Button 
+                    onClick={() => {
+                      setIsOpen(false);
+                      navigate("/auth");
+                    }}
+                    variant="hero"
+                    className="w-full min-h-[44px] text-sm sm:text-base" 
+                    size="lg"
+                  >
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Faça login para comprar
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handlePagBankCheckout}
+                    variant="hero"
+                    className="w-full min-h-[44px] text-sm sm:text-base" 
+                    size="lg"
+                    disabled={items.length === 0 || isProcessing}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Finalizar Compra
+                      </>
+                    )}
+                  </Button>
+                )}
                 <p className="text-[10px] sm:text-xs text-center text-muted-foreground pb-safe">
                   Pagamento seguro via PagBank - PIX, Boleto ou Cartão
                 </p>

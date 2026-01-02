@@ -106,15 +106,35 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Try to get authenticated user (optional)
-    let userId: string | null = null;
+    // SECURITY: Require authentication for checkout
     const authHeader = req.headers.get("Authorization");
-    if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
-      const { data: userData } = await supabaseClient.auth.getUser(token);
-      userId = userData.user?.id || null;
-      logStep("User authenticated", { userId });
+    if (!authHeader) {
+      logSecurityEvent("CHECKOUT_UNAUTHORIZED", { ip: clientIP, reason: "no_auth_header" });
+      return new Response(
+        JSON.stringify({ error: "Você precisa estar logado para fazer uma compra" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        }
+      );
     }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: authError } = await supabaseClient.auth.getUser(token);
+    
+    if (authError || !userData.user) {
+      logSecurityEvent("CHECKOUT_INVALID_TOKEN", { ip: clientIP, error: authError?.message });
+      return new Response(
+        JSON.stringify({ error: "Sessão inválida. Por favor, faça login novamente." }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        }
+      );
+    }
+
+    const userId = userData.user.id;
+    logStep("User authenticated", { userId });
 
     // Parse and validate request body
     let requestBody: CheckoutRequest;

@@ -94,6 +94,44 @@ serve(async (req) => {
     }
     logStep("Stripe key verified");
 
+    // Initialize Supabase client for auth verification
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.57.2");
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    // SECURITY: Require authentication for checkout
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      logSecurityEvent("CHECKOUT_UNAUTHORIZED", { ip: clientIP, reason: "no_auth_header" });
+      return new Response(
+        JSON.stringify({ error: "Você precisa estar logado para fazer uma compra" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        }
+      );
+    }
+
+    const authToken = authHeader.replace("Bearer ", "");
+    const { data: userData, error: authError } = await supabaseClient.auth.getUser(authToken);
+    
+    if (authError || !userData.user) {
+      logSecurityEvent("CHECKOUT_INVALID_TOKEN", { ip: clientIP, error: authError?.message });
+      return new Response(
+        JSON.stringify({ error: "Sessão inválida. Por favor, faça login novamente." }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        }
+      );
+    }
+
+    const customerEmail = userData.user.email;
+    logStep("User authenticated", { userId: userData.user.id, hasEmail: !!customerEmail });
+
     // Parse and validate request body
     let requestBody: CheckoutRequest;
     try {
@@ -102,7 +140,7 @@ serve(async (req) => {
       throw new Error("Invalid JSON body");
     }
 
-    const { items: rawItems, customerEmail } = requestBody;
+    const { items: rawItems } = requestBody;
     
     // Validate and sanitize items
     const items = validateAndSanitizeItems(rawItems);
@@ -148,7 +186,7 @@ serve(async (req) => {
     const isAllowedOrigin = allowedOrigins.some(allowed => origin.startsWith(allowed));
     const safeOrigin = isAllowedOrigin ? origin : "https://orbelivros.com.br";
 
-    // Validate customer email if provided
+    // Use validated customer email from auth
     const safeEmail = customerEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail) 
       ? customerEmail 
       : undefined;
