@@ -125,7 +125,7 @@ serve(async (req) => {
           ],
         },
       ],
-      soft_descriptor: "Livraria Aconchego",
+      soft_descriptor: "Aconchego",
       redirect_url: `${origin}/payment-success?reference_id=${referenceId}`,
       payment_notification_urls: [webhookUrl],
       notification_urls: [],
