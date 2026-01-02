@@ -99,9 +99,8 @@ serve(async (req) => {
       }
     }
 
-    // PagBank Checkout API - Sandbox (homologação)
-    // Production: https://api.pagseguro.com/checkouts
-    const apiUrl = "https://sandbox.api.pagseguro.com/checkouts";
+    // PagBank Checkout API - Production
+    const apiUrl = "https://api.pagseguro.com/checkouts";
     
     // Webhook URL for payment notifications
     const webhookUrl = `${supabaseUrl}/functions/v1/pagbank-webhook`;
