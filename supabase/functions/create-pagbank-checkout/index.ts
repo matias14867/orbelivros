@@ -109,16 +109,13 @@ serve(async (req) => {
     
     const checkoutPayload = {
       reference_id: referenceId,
-      customer: customerEmail ? {
-        email: customerEmail,
-        name: customerName || "Cliente",
-      } : undefined,
+      customer_modifiable: true,
       items: pagbankItems,
       payment_methods: [
-        { type: "PIX" },
-        { type: "BOLETO" },
         { type: "CREDIT_CARD" },
         { type: "DEBIT_CARD" },
+        { type: "BOLETO" },
+        { type: "PIX" },
       ],
       payment_methods_configs: [
         {
@@ -128,11 +125,10 @@ serve(async (req) => {
           ],
         },
       ],
-      redirect_urls: {
-        return_url: `${origin}/payment-success?reference_id=${referenceId}`,
-      },
-      notification_urls: [webhookUrl],
-      expiration_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+      soft_descriptor: "Livraria Aconchego",
+      redirect_url: `${origin}/payment-success?reference_id=${referenceId}`,
+      payment_notification_urls: [webhookUrl],
+      notification_urls: [],
     };
 
     // Ensure token has Bearer prefix
