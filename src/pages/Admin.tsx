@@ -55,6 +55,7 @@ const Admin = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [importKeyword, setImportKeyword] = useState("");
   const [importing, setImporting] = useState(false);
+  const [syncingBooks, setSyncingBooks] = useState(false);
 
   const [siteSettings, setSiteSettings] = useState({
     primaryColor: "#d4a5a5",
@@ -199,10 +200,37 @@ const Admin = () => {
       } else {
         toast.error("Nenhum produto encontrado");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao importar");
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : "Erro ao importar";
+      toast.error(errMsg);
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleSyncBooks = async () => {
+    setSyncingBooks(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cj-api', {
+        body: { action: 'syncBooks', pageSize: 10, markup: 2.5 },
+      });
+
+      if (error) throw error;
+      
+      if (data?.success) {
+        toast.success(data.data.message || `${data.data.imported} livros sincronizados!`);
+        if (data.data.errors?.length > 0) {
+          console.warn("Sync errors:", data.data.errors);
+        }
+        refetchProducts();
+      } else {
+        toast.error(data?.error || "Erro na sincronização");
+      }
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : "Erro ao sincronizar";
+      toast.error(errMsg);
+    } finally {
+      setSyncingBooks(false);
     }
   };
 
@@ -274,10 +302,10 @@ const Admin = () => {
                     Importar do CJ Dropshipping
                   </CardTitle>
                   <CardDescription>
-                    Busque e importe produtos automaticamente
+                    Busque e importe produtos automaticamente (usa 1 requisição por produto)
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <div className="flex gap-4">
                     <Input
                       placeholder="Ex: smartphone, headphone, watch..."
@@ -292,6 +320,25 @@ const Admin = () => {
                         <Download className="h-4 w-4 mr-2" />
                       )}
                       Importar
+                    </Button>
+                  </div>
+                  
+                  <div className="border-t pt-4">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      <strong>Sincronização rápida:</strong> Importa 10 livros com apenas 1 requisição à API
+                    </p>
+                    <Button 
+                      onClick={handleSyncBooks} 
+                      disabled={syncingBooks}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {syncingBooks ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      )}
+                      Sincronizar Livros (economia de API)
                     </Button>
                   </div>
                 </CardContent>

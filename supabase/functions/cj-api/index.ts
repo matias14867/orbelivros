@@ -91,6 +91,108 @@ serve(async (req) => {
         break;
       }
 
+      case "syncBooks": {
+        // Sync books with limited API calls
+        const { pageNum = 1, pageSize = 10, markup = 2.5 } = params;
+        
+        // Search for books - single API call
+        const searchBody = { 
+          pageNum, 
+          pageSize,
+          productNameEn: "book",
+        };
+        
+        const searchResponse = await cjRequest("/product/list", "POST", searchBody);
+        
+        if (!searchResponse.result) {
+          throw new Error(`Search failed: ${searchResponse.message}`);
+        }
+
+        const products = searchResponse.data as { list?: unknown[] } | null;
+        const productList = products?.list || [];
+        
+        if (productList.length === 0) {
+          result = { imported: 0, message: "No products found" };
+          break;
+        }
+
+        let imported = 0;
+        const errors: string[] = [];
+
+        // Process each product without additional API calls for variants
+        for (const product of productList as Array<{
+          pid: string;
+          productNameEn: string;
+          description?: string;
+          categoryName?: string;
+          sellPrice?: string;
+          productWeight?: string;
+          productImage?: string;
+          productImageSet?: string[];
+          productSku?: string;
+          categoryId?: string;
+        }>) {
+          try {
+            const handle = product.productNameEn
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/(^-|-$)/g, "");
+
+            const costPrice = parseFloat(product.sellPrice || product.productWeight || "0");
+            const price = Math.ceil(costPrice * markup * 5.5);
+            const compareAtPrice = Math.ceil(price * 1.3);
+
+            const { error } = await supabaseClient.from("products").upsert({
+              cj_product_id: product.pid,
+              cj_variant_id: null, // Skip variant API call to save quota
+              title: product.productNameEn,
+              description: product.description || product.productNameEn,
+              category: product.categoryName || "Livros",
+              handle: `${handle}-${product.pid.substring(0, 8)}`,
+              price: price > 0 ? price : 49.90,
+              compare_at_price: compareAtPrice > 0 ? compareAtPrice : 69.90,
+              cost_price: costPrice,
+              currency: "BRL",
+              image_url: product.productImage,
+              images: product.productImageSet || [product.productImage],
+              sku: product.productSku,
+              in_stock: true,
+              stock_quantity: 999,
+              weight: parseFloat(product.productWeight || "0"),
+              cj_category_id: product.categoryId,
+              supplier_name: "CJ Dropshipping",
+              shipping_time: "15-30 dias úteis",
+            }, { onConflict: "cj_product_id" });
+
+            if (error) {
+              errors.push(`${product.productNameEn}: ${error.message}`);
+            } else {
+              imported++;
+            }
+          } catch (e) {
+            const errMsg = e instanceof Error ? e.message : "Unknown error";
+            errors.push(`${product.productNameEn}: ${errMsg}`);
+          }
+        }
+
+        // Log sync
+        await supabaseClient.from("cj_sync_log").insert({
+          sync_type: "books",
+          status: errors.length > 0 ? "partial" : "completed",
+          products_synced: imported,
+          errors: errors.length > 0 ? errors : null,
+          completed_at: new Date().toISOString(),
+        });
+
+        result = { 
+          imported, 
+          total: productList.length,
+          errors: errors.length > 0 ? errors : undefined,
+          message: `Imported ${imported} of ${productList.length} products`
+        };
+        break;
+      }
+
       case "getProductDetails": {
         const { pid } = params;
         const response = await cjRequest(`/product/query?pid=${pid}`);
