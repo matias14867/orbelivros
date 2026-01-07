@@ -185,9 +185,28 @@ async function getAccessToken(supabaseClient: SupabaseClient): Promise<string> {
   }
 }
 
-async function cjRequest(supabaseClient: SupabaseClient, endpoint: string, method: string = "GET", body?: unknown): Promise<CJApiResponse> {
+async function cjRequest(
+  supabaseClient: SupabaseClient,
+  endpoint: string,
+  method: string = "GET",
+  bodyOrParams?: unknown
+): Promise<CJApiResponse> {
   const accessToken = await getAccessToken(supabaseClient);
-  
+
+  let url = `${CJ_API_BASE}${endpoint}`;
+
+  // For GET requests, append query params; for others, use JSON body
+  if (method === "GET" && bodyOrParams && typeof bodyOrParams === "object") {
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(bodyOrParams as Record<string, unknown>)) {
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, String(value));
+      }
+    }
+    const qs = searchParams.toString();
+    if (qs) url += (url.includes("?") ? "&" : "?") + qs;
+  }
+
   const options: RequestInit = {
     method,
     headers: {
@@ -196,11 +215,11 @@ async function cjRequest(supabaseClient: SupabaseClient, endpoint: string, metho
     },
   };
 
-  if (body) {
-    options.body = JSON.stringify(body);
+  if (method !== "GET" && bodyOrParams) {
+    options.body = JSON.stringify(bodyOrParams);
   }
 
-  const response = await fetch(`${CJ_API_BASE}${endpoint}`, options);
+  const response = await fetch(url, options);
   return response.json();
 }
 
@@ -231,35 +250,37 @@ serve(async (req) => {
       }
 
       case "searchProducts": {
-        const { categoryId, keyword, pageNum = 1, pageSize = 20 } = params;
-        const body: Record<string, unknown> = { pageNum, pageSize };
-        if (categoryId) body.categoryId = categoryId;
-        if (keyword) body.productNameEn = keyword;
-        
-        const response = await cjRequest(supabaseClient, "/product/list", "POST", body);
+        const { categoryId, keyword, page = 1, size = 20 } = params;
+        const queryParams: Record<string, unknown> = { page, size };
+        if (categoryId) queryParams.categoryId = categoryId;
+        if (keyword) queryParams.keyWord = keyword;
+
+        const response = await cjRequest(supabaseClient, "/product/listV2", "GET", queryParams);
         result = response.data;
         break;
       }
 
       case "syncBooks": {
-        // Sync books with limited API calls
-        const { pageNum = 1, pageSize = 10, markup = 2.5 } = params;
-        
-        // Search for books - single API call
-        const searchBody = { 
-          pageNum, 
-          pageSize,
-          productNameEn: "book",
+        // Sync books with limited API calls using GET /product/listV2
+        const { page = 1, size = 10, markup = 2.5 } = params;
+
+        const queryParams = {
+          page,
+          size,
+          keyWord: "book",
         };
-        
-        const searchResponse = await cjRequest(supabaseClient, "/product/list", "POST", searchBody);
-        
+
+        const searchResponse = await cjRequest(supabaseClient, "/product/listV2", "GET", queryParams);
+
         if (!searchResponse.result) {
           throw new Error(`Search failed: ${searchResponse.message}`);
         }
 
-        const products = searchResponse.data as { list?: unknown[] } | null;
-        const productList = products?.list || [];
+        // listV2 returns { content: [{ productList: [...] }] }
+        const responseData = searchResponse.data as {
+          content?: Array<{ productList?: unknown[] }>;
+        } | null;
+        const productList = responseData?.content?.[0]?.productList || [];
         
         if (productList.length === 0) {
           result = { imported: 0, message: "No products found" };
@@ -269,59 +290,58 @@ serve(async (req) => {
         let imported = 0;
         const errors: string[] = [];
 
-        // Process each product without additional API calls for variants
+        // Process each product (listV2 field names differ from old API)
         for (const product of productList as Array<{
-          pid: string;
-          productNameEn: string;
+          id: string;
+          nameEn: string;
           description?: string;
-          categoryName?: string;
+          threeCategoryName?: string;
           sellPrice?: string;
-          productWeight?: string;
-          productImage?: string;
-          productImageSet?: string[];
-          productSku?: string;
+          bigImage?: string;
+          sku?: string;
           categoryId?: string;
         }>) {
           try {
-            const handle = product.productNameEn
+            const titleRaw = product.nameEn || "Produto CJ";
+            const handle = titleRaw
               .toLowerCase()
               .replace(/[^a-z0-9]+/g, "-")
               .replace(/(^-|-$)/g, "");
 
-            const costPrice = parseFloat(product.sellPrice || product.productWeight || "0");
+            const costPrice = parseFloat(product.sellPrice || "0");
             const price = Math.ceil(costPrice * markup * 5.5);
             const compareAtPrice = Math.ceil(price * 1.3);
 
             const { error } = await supabaseClient.from("products").upsert({
-              cj_product_id: product.pid,
-              cj_variant_id: null, // Skip variant API call to save quota
-              title: product.productNameEn,
-              description: product.description || product.productNameEn,
-              category: product.categoryName || "Livros",
-              handle: `${handle}-${product.pid.substring(0, 8)}`,
+              cj_product_id: product.id,
+              cj_variant_id: null,
+              title: titleRaw,
+              description: product.description || titleRaw,
+              category: product.threeCategoryName || "Livros",
+              handle: `${handle}-${product.id.substring(0, 8)}`,
               price: price > 0 ? price : 49.90,
               compare_at_price: compareAtPrice > 0 ? compareAtPrice : 69.90,
               cost_price: costPrice,
               currency: "BRL",
-              image_url: product.productImage,
-              images: product.productImageSet || [product.productImage],
-              sku: product.productSku,
+              image_url: product.bigImage,
+              images: product.bigImage ? [product.bigImage] : [],
+              sku: product.sku,
               in_stock: true,
               stock_quantity: 999,
-              weight: parseFloat(product.productWeight || "0"),
+              weight: 0,
               cj_category_id: product.categoryId,
               supplier_name: "CJ Dropshipping",
               shipping_time: "15-30 dias úteis",
             }, { onConflict: "cj_product_id" });
 
             if (error) {
-              errors.push(`${product.productNameEn}: ${error.message}`);
+              errors.push(`${titleRaw}: ${error.message}`);
             } else {
               imported++;
             }
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : "Unknown error";
-            errors.push(`${product.productNameEn}: ${errMsg}`);
+            errors.push(`${product.nameEn || product.id}: ${errMsg}`);
           }
         }
 
