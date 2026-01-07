@@ -19,7 +19,6 @@ const PaymentSuccess = () => {
 
   useEffect(() => {
     const recordPurchase = async () => {
-      // Only record if user is logged in and we have items and a reference
       if (!user || items.length === 0 || recorded) {
         clearCart();
         return;
@@ -29,13 +28,12 @@ const PaymentSuccess = () => {
       
       setIsRecording(true);
       try {
-        // Format items for the edge function
         const purchaseItems = items.map(item => ({
-          name: item.product.node.title,
-          price: parseFloat(item.price.amount),
+          name: item.product.title,
+          price: item.product.price,
           quantity: item.quantity,
-          image: item.product.node.images?.edges?.[0]?.node?.url || undefined,
-          handle: item.product.node.handle,
+          image: item.product.image_url || undefined,
+          handle: item.product.handle,
         }));
 
         const { error } = await supabase.functions.invoke('record-purchase', {
@@ -48,7 +46,6 @@ const PaymentSuccess = () => {
         if (error) {
           console.error('Error recording purchase:', error);
         } else {
-          console.log('Purchase recorded successfully');
           setRecorded(true);
         }
       } catch (error) {
@@ -81,7 +78,7 @@ const PaymentSuccess = () => {
           
           <p className="text-muted-foreground mb-8">
             {isRecording 
-              ? "Registrando sua compra no histórico..."
+              ? "Registrando sua compra..."
               : "Obrigado pela sua compra! Você receberá um e-mail com os detalhes do seu pedido."
             }
           </p>
@@ -93,14 +90,14 @@ const PaymentSuccess = () => {
           )}
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild variant="hero" disabled={isRecording}>
+            <Button asChild disabled={isRecording}>
               <Link to="/">
                 <Home className="w-4 h-4 mr-2" />
                 Voltar ao Início
               </Link>
             </Button>
             <Button asChild variant="outline" disabled={isRecording}>
-              <Link to="/all-books">
+              <Link to="/produtos">
                 <ShoppingBag className="w-4 h-4 mr-2" />
                 Continuar Comprando
               </Link>

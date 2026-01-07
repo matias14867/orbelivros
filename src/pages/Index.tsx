@@ -1,7 +1,7 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Categories from "@/components/Categories";
-import { ShopifyProducts } from "@/components/ShopifyProducts";
+import { Products } from "@/components/Products";
 import Benefits from "@/components/Benefits";
 import Newsletter from "@/components/Newsletter";
 import Footer from "@/components/Footer";
@@ -20,7 +20,7 @@ const Index = () => {
         <InspirationalQuote quote={quote.quote} author={quote.author} className="bg-muted/30" />
         <Categories />
         <AboutUs />
-        <ShopifyProducts />
+        <Products />
         <Benefits />
         <Newsletter />
       </main>

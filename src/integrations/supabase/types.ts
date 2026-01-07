@@ -14,53 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      book_comments: {
-        Row: {
-          book_handle: string
-          comment: string
-          created_at: string
-          id: string
-          parent_id: string | null
-          rating: number | null
-          status: string
-          updated_at: string
-          user_id: string
-          user_name: string
-        }
-        Insert: {
-          book_handle: string
-          comment: string
-          created_at?: string
-          id?: string
-          parent_id?: string | null
-          rating?: number | null
-          status?: string
-          updated_at?: string
-          user_id: string
-          user_name: string
-        }
-        Update: {
-          book_handle?: string
-          comment?: string
-          created_at?: string
-          id?: string
-          parent_id?: string | null
-          rating?: number | null
-          status?: string
-          updated_at?: string
-          user_id?: string
-          user_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "book_comments_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "book_comments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       books: {
         Row: {
           author: string | null
@@ -109,34 +62,35 @@ export type Database = {
         }
         Relationships: []
       }
-      comment_likes: {
+      cj_sync_log: {
         Row: {
-          comment_id: string
-          created_at: string
+          completed_at: string | null
+          errors: Json | null
           id: string
-          user_id: string
+          products_synced: number | null
+          started_at: string | null
+          status: string | null
+          sync_type: string
         }
         Insert: {
-          comment_id: string
-          created_at?: string
+          completed_at?: string | null
+          errors?: Json | null
           id?: string
-          user_id: string
+          products_synced?: number | null
+          started_at?: string | null
+          status?: string | null
+          sync_type: string
         }
         Update: {
-          comment_id?: string
-          created_at?: string
+          completed_at?: string | null
+          errors?: Json | null
           id?: string
-          user_id?: string
+          products_synced?: number | null
+          started_at?: string | null
+          status?: string | null
+          sync_type?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "comment_likes_comment_id_fkey"
-            columns: ["comment_id"]
-            isOneToOne: false
-            referencedRelation: "book_comments"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       contacts: {
         Row: {
@@ -204,43 +158,164 @@ export type Database = {
         }
         Relationships: []
       }
-      monthly_picks: {
+      order_items: {
         Row: {
-          book_id: string
-          created_at: string
-          created_by: string | null
-          description: string | null
+          cj_variant_id: string | null
+          created_at: string | null
           id: string
-          month: number
-          year: number
+          image_url: string | null
+          order_id: string
+          product_id: string | null
+          quantity: number
+          sku: string | null
+          title: string
+          total_price: number
+          unit_price: number
         }
         Insert: {
-          book_id: string
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
+          cj_variant_id?: string | null
+          created_at?: string | null
           id?: string
-          month: number
-          year: number
+          image_url?: string | null
+          order_id: string
+          product_id?: string | null
+          quantity?: number
+          sku?: string | null
+          title: string
+          total_price: number
+          unit_price: number
         }
         Update: {
-          book_id?: string
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
+          cj_variant_id?: string | null
+          created_at?: string | null
           id?: string
-          month?: number
-          year?: number
+          image_url?: string | null
+          order_id?: string
+          product_id?: string | null
+          quantity?: number
+          sku?: string | null
+          title?: string
+          total_price?: number
+          unit_price?: number
         }
         Relationships: [
           {
-            foreignKeyName: "monthly_picks_book_id_fkey"
-            columns: ["book_id"]
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "books"
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
+      }
+      orders: {
+        Row: {
+          cancelled_at: string | null
+          cj_order_id: string | null
+          created_at: string | null
+          currency: string | null
+          delivered_at: string | null
+          id: string
+          logistic_name: string | null
+          order_number: string
+          paid_at: string | null
+          payment_id: string | null
+          payment_method: string | null
+          payment_status: string | null
+          shipped_at: string | null
+          shipping_address: string
+          shipping_address2: string | null
+          shipping_city: string
+          shipping_cost: number | null
+          shipping_country: string | null
+          shipping_country_code: string | null
+          shipping_email: string | null
+          shipping_name: string
+          shipping_phone: string
+          shipping_state: string
+          shipping_zip: string
+          status: string | null
+          subtotal: number
+          total: number
+          tracking_number: string | null
+          tracking_url: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          cj_order_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          delivered_at?: string | null
+          id?: string
+          logistic_name?: string | null
+          order_number: string
+          paid_at?: string | null
+          payment_id?: string | null
+          payment_method?: string | null
+          payment_status?: string | null
+          shipped_at?: string | null
+          shipping_address: string
+          shipping_address2?: string | null
+          shipping_city: string
+          shipping_cost?: number | null
+          shipping_country?: string | null
+          shipping_country_code?: string | null
+          shipping_email?: string | null
+          shipping_name: string
+          shipping_phone: string
+          shipping_state: string
+          shipping_zip: string
+          status?: string | null
+          subtotal: number
+          total: number
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          cj_order_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          delivered_at?: string | null
+          id?: string
+          logistic_name?: string | null
+          order_number?: string
+          paid_at?: string | null
+          payment_id?: string | null
+          payment_method?: string | null
+          payment_status?: string | null
+          shipped_at?: string | null
+          shipping_address?: string
+          shipping_address2?: string | null
+          shipping_city?: string
+          shipping_cost?: number | null
+          shipping_country?: string | null
+          shipping_country_code?: string | null
+          shipping_email?: string | null
+          shipping_name?: string
+          shipping_phone?: string
+          shipping_state?: string
+          shipping_zip?: string
+          status?: string | null
+          subtotal?: number
+          total?: number
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       pending_purchases: {
         Row: {
@@ -263,6 +338,81 @@ export type Database = {
           items?: Json
           reference_id?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          category: string | null
+          cj_category_id: string | null
+          cj_product_id: string | null
+          cj_variant_id: string | null
+          compare_at_price: number | null
+          cost_price: number | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          handle: string
+          id: string
+          image_url: string | null
+          images: Json | null
+          in_stock: boolean | null
+          price: number
+          shipping_time: string | null
+          sku: string | null
+          stock_quantity: number | null
+          supplier_name: string | null
+          title: string
+          updated_at: string | null
+          weight: number | null
+        }
+        Insert: {
+          category?: string | null
+          cj_category_id?: string | null
+          cj_product_id?: string | null
+          cj_variant_id?: string | null
+          compare_at_price?: number | null
+          cost_price?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          handle: string
+          id?: string
+          image_url?: string | null
+          images?: Json | null
+          in_stock?: boolean | null
+          price: number
+          shipping_time?: string | null
+          sku?: string | null
+          stock_quantity?: number | null
+          supplier_name?: string | null
+          title: string
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Update: {
+          category?: string | null
+          cj_category_id?: string | null
+          cj_product_id?: string | null
+          cj_variant_id?: string | null
+          compare_at_price?: number | null
+          cost_price?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          handle?: string
+          id?: string
+          image_url?: string | null
+          images?: Json | null
+          in_stock?: boolean | null
+          price?: number
+          shipping_time?: string | null
+          sku?: string | null
+          stock_quantity?: number | null
+          supplier_name?: string | null
+          title?: string
+          updated_at?: string | null
+          weight?: number | null
         }
         Relationships: []
       }
@@ -314,84 +464,6 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      promotion_books: {
-        Row: {
-          book_id: string
-          created_at: string
-          id: string
-          promotion_id: string
-        }
-        Insert: {
-          book_id: string
-          created_at?: string
-          id?: string
-          promotion_id: string
-        }
-        Update: {
-          book_id?: string
-          created_at?: string
-          id?: string
-          promotion_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "promotion_books_book_id_fkey"
-            columns: ["book_id"]
-            isOneToOne: false
-            referencedRelation: "books"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "promotion_books_promotion_id_fkey"
-            columns: ["promotion_id"]
-            isOneToOne: false
-            referencedRelation: "promotions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      promotions: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          description: string | null
-          discount_percentage: number
-          end_date: string | null
-          id: string
-          is_active: boolean
-          start_date: string | null
-          theme_color: string | null
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          discount_percentage?: number
-          end_date?: string | null
-          id?: string
-          is_active?: boolean
-          start_date?: string | null
-          theme_color?: string | null
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          discount_percentage?: number
-          end_date?: string | null
-          id?: string
-          is_active?: boolean
-          start_date?: string | null
-          theme_color?: string | null
-          title?: string
-          updated_at?: string
         }
         Relationships: []
       }

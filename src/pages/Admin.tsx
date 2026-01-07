@@ -1,9 +1,9 @@
-import { useEffect, useState, useMemo, lazy, Suspense } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useBooks, Book } from "@/hooks/useBooks";
+import { useAllProducts, useDeleteProduct, useUpdateProduct, Product } from "@/hooks/useProducts";
 import { useContacts } from "@/hooks/useContacts";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
@@ -12,29 +12,21 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteTextsEditor } from "@/components/admin/SiteTextsEditor";
 import { SiteImagesEditor } from "@/components/admin/SiteImagesEditor";
-import CommentsManager from "@/components/admin/CommentsManager";
-import PromotionsManager from "@/components/admin/PromotionsManager";
-import MonthlyPicksManager from "@/components/admin/MonthlyPicksManager";
 import {
   Loader2,
-  BookOpen,
+  Package,
   Edit,
   Shield,
   Search,
   Users,
   MessageSquare,
-  MessageCircle,
   Palette,
-  Tag,
-  Calendar,
   Plus,
   Trash2,
   RefreshCw,
@@ -42,65 +34,38 @@ import {
   Clock,
   User,
   Mail,
-  TestTube,
   Phone,
   Type,
   Image as ImageIcon,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
-
-const CATEGORIES = [
-  "Romance",
-  "Autoajuda",
-  "Ficção",
-  "Poesia",
-  "Clássicos",
-  "Drama",
-  "Fantasia",
-  "Distopia",
-  "Literatura Brasileira",
-  "Infantojuvenil",
-  "Tragédia",
-];
 
 const Admin = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
-  const { books, loading: booksLoading, addBook, updateBook, deleteBook, refetch: refetchBooks } = useBooks();
+  const { data: products, isLoading: productsLoading, refetch: refetchProducts } = useAllProducts();
+  const deleteProduct = useDeleteProduct();
+  const updateProduct = useUpdateProduct();
   const { contacts, loading: contactsLoading, updateContactStatus, deleteContact, refetch: refetchContacts } = useContacts();
   const { users, loading: usersLoading, deleteUser, refetch: refetchUsers } = useAdminUsers();
   const { settings, updateSetting } = useSiteSettings();
   
   const [searchQuery, setSearchQuery] = useState("");
-  const [editingBook, setEditingBook] = useState<Book | null>(null);
-  const [editForm, setEditForm] = useState({
-    title: "",
-    author: "",
-    description: "",
-    price: "",
-    original_price: "",
-    category: "",
-    image_url: "",
-    handle: "",
-    in_stock: true,
-    featured: false,
-  });
-  const [isCreating, setIsCreating] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [importKeyword, setImportKeyword] = useState("");
+  const [importing, setImporting] = useState(false);
 
-  // Site settings state
   const [siteSettings, setSiteSettings] = useState({
     primaryColor: "#d4a5a5",
-    storeName: "Orbe Livros",
-    heroTitle: "Descubra seu próximo livro favorito",
-    heroSubtitle: "Curadoria especial para mulheres que amam ler",
+    storeName: "Dropshipping Store",
+    heroTitle: "Produtos incríveis com os melhores preços",
+    heroSubtitle: "Entrega rápida para todo o Brasil",
   });
 
-  // Contact info state
   const [contactInfo, setContactInfo] = useState({
     phone: "(11) 99999-9999",
-    email: "contato@orbelivros.com.br",
+    email: "contato@loja.com.br",
     address: "São Paulo, Brasil",
     instagram: "",
     facebook: "",
@@ -108,12 +73,11 @@ const Admin = () => {
     youtube: "",
   });
 
-  // Load settings from database
   useEffect(() => {
     if (settings.contact) {
       setContactInfo({
         phone: settings.contact.phone || "(11) 99999-9999",
-        email: settings.contact.email || "contato@orbelivros.com.br",
+        email: settings.contact.email || "contato@loja.com.br",
         address: settings.contact.address || "São Paulo, Brasil",
         instagram: settings.contact.instagram || "",
         facebook: settings.contact.facebook || "",
@@ -124,9 +88,9 @@ const Admin = () => {
     if (settings.theme) {
       setSiteSettings({
         primaryColor: settings.theme.primaryColor || "#d4a5a5",
-        storeName: settings.theme.storeName || "Orbe Livros",
-        heroTitle: settings.theme.heroTitle || "Descubra seu próximo livro favorito",
-        heroSubtitle: settings.theme.heroSubtitle || "Curadoria especial para mulheres que amam ler",
+        storeName: settings.theme.storeName || "Dropshipping Store",
+        heroTitle: settings.theme.heroTitle || "Produtos incríveis com os melhores preços",
+        heroSubtitle: settings.theme.heroSubtitle || "Entrega rápida para todo o Brasil",
       });
     }
   }, [settings]);
@@ -136,102 +100,38 @@ const Admin = () => {
       navigate("/auth");
       return;
     }
-
     if (!authLoading && !roleLoading && !isAdmin) {
-      toast.error("Acesso negado. Apenas administradores podem acessar esta página.");
+      toast.error("Acesso negado. Apenas administradores.");
       navigate("/");
       return;
     }
   }, [user, authLoading, isAdmin, roleLoading, navigate]);
 
-  const filteredBooks = useMemo(() => {
-    if (!searchQuery.trim()) return books;
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    if (!searchQuery.trim()) return products;
     const query = searchQuery.toLowerCase();
-    return books.filter(
-      (b) =>
-        b.title.toLowerCase().includes(query) ||
-        b.author?.toLowerCase().includes(query)
+    return products.filter((p) =>
+      p.title.toLowerCase().includes(query) ||
+      p.category?.toLowerCase().includes(query)
     );
-  }, [searchQuery, books]);
+  }, [searchQuery, products]);
 
-  const handleEdit = (book: Book) => {
-    setEditingBook(book);
-    setIsCreating(false);
-    setEditForm({
-      title: book.title,
-      author: book.author || "",
-      description: book.description || "",
-      price: String(book.price),
-      original_price: book.original_price ? String(book.original_price) : "",
-      category: book.category || "",
-      image_url: book.image_url || "",
-      handle: book.handle,
-      in_stock: book.in_stock ?? true,
-      featured: book.featured ?? false,
-    });
-  };
-
-  const handleCreate = () => {
-    setIsCreating(true);
-    setEditingBook(null);
-    setEditForm({
-      title: "",
-      author: "",
-      description: "",
-      price: "",
-      original_price: "",
-      category: "",
-      image_url: "",
-      handle: "",
-      in_stock: true,
-      featured: false,
-    });
-  };
-
-  const handleSave = async () => {
+  const handleDeleteProduct = async (product: Product) => {
+    if (!confirm(`Excluir "${product.title}"?`)) return;
     try {
-      const bookData = {
-        title: editForm.title,
-        author: editForm.author || null,
-        description: editForm.description || null,
-        price: parseFloat(editForm.price) || 0,
-        original_price: editForm.original_price ? parseFloat(editForm.original_price) : null,
-        category: editForm.category || null,
-        image_url: editForm.image_url || null,
-        handle: editForm.handle || editForm.title.toLowerCase().replace(/\s+/g, "-"),
-        in_stock: editForm.in_stock,
-        featured: editForm.featured,
-      };
-
-      if (isCreating) {
-        await addBook(bookData);
-        toast.success("Livro criado com sucesso!");
-      } else if (editingBook) {
-        await updateBook(editingBook.id, bookData);
-        toast.success("Livro atualizado com sucesso!");
-      }
-      setEditingBook(null);
-      setIsCreating(false);
+      await deleteProduct.mutateAsync(product.id);
+      toast.success("Produto excluído!");
     } catch (error) {
-      toast.error("Erro ao salvar livro");
-    }
-  };
-
-  const handleDeleteBook = async (book: Book) => {
-    if (!confirm(`Tem certeza que deseja excluir "${book.title}"?`)) return;
-    try {
-      await deleteBook(book.id);
-      toast.success("Livro excluído com sucesso!");
-    } catch (error) {
-      toast.error("Erro ao excluir livro");
+      toast.error("Erro ao excluir");
     }
   };
 
   const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`Tem certeza que deseja excluir o usuário "${userName}"?`)) return;
+    if (!confirm(`Excluir usuário "${userName}"?`)) return;
     try {
       await deleteUser(userId);
-      toast.success("Usuário excluído com sucesso!");
+      toast.success("Usuário excluído!");
     } catch (error) {
       toast.error("Erro ao excluir usuário");
     }
@@ -247,7 +147,7 @@ const Admin = () => {
   };
 
   const handleDeleteContact = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este contato?")) return;
+    if (!confirm("Excluir contato?")) return;
     try {
       await deleteContact(id);
       toast.success("Contato excluído!");
@@ -259,114 +159,50 @@ const Admin = () => {
   const handleSaveSettings = async () => {
     try {
       await updateSetting("theme", siteSettings);
-      toast.success("Configurações de aparência salvas!");
+      toast.success("Configurações salvas!");
     } catch (error) {
-      toast.error("Erro ao salvar configurações");
+      toast.error("Erro ao salvar");
     }
   };
 
   const handleSaveContactInfo = async () => {
     try {
       await updateSetting("contact", contactInfo);
-      toast.success("Informações de contato salvas!");
+      toast.success("Contato salvo!");
     } catch (error) {
-      toast.error("Erro ao salvar informações de contato");
+      toast.error("Erro ao salvar");
     }
   };
 
-  // Test data generation functions
-  const generateRandomProfile = async () => {
-    setGenerating(true);
+  const handleImportProducts = async () => {
+    if (!importKeyword.trim()) {
+      toast.error("Digite uma palavra-chave");
+      return;
+    }
+    
+    setImporting(true);
     try {
-      const names = ["Maria Silva", "Ana Santos", "Julia Oliveira", "Carla Souza", "Paula Lima", "Fernanda Costa"];
-      const name = `Teste - ${names[Math.floor(Math.random() * names.length)]}`;
-      
-      // Create a fake profile entry (without actual auth user)
-      const { error } = await supabase.from('profiles').insert({
-        user_id: crypto.randomUUID(),
-        full_name: name,
+      const { data, error } = await supabase.functions.invoke('cj-api', {
+        body: { action: 'searchProducts', keyword: importKeyword, pageSize: 10 },
       });
 
       if (error) throw error;
-      toast.success(`Perfil de teste "${name}" criado!`);
-      refetchUsers();
-    } catch (error) {
-      toast.error("Erro ao gerar perfil");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const generateRandomBook = async () => {
-    setGenerating(true);
-    try {
-      const titles = [
-        "[TEST] O Jardim Secreto",
-        "[TEST] A Última Rosa",
-        "[TEST] Caminhos do Coração",
-        "[TEST] Noites de Verão",
-        "[TEST] O Segredo da Lua",
-        "[TEST] Flores de Inverno",
-      ];
-      const authors = ["Emily Rose", "Clara Mendes", "Sophia Bennett", "Lucia Torres"];
-      const baseTitle = titles[Math.floor(Math.random() * titles.length)];
-      const title = `${baseTitle} ${Math.floor(Math.random() * 100)}`;
-      const author = authors[Math.floor(Math.random() * authors.length)];
-      const price = (Math.random() * 80 + 20).toFixed(2);
-
-      await addBook({
-        title,
-        author,
-        description: `Uma história envolvente sobre ${baseTitle.toLowerCase()}.`,
-        price: parseFloat(price),
-        original_price: parseFloat(price) + 20,
-        category: CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)],
-        image_url: null,
-        handle: title.toLowerCase().replace(/\s+/g, "-"),
-        in_stock: true,
-        featured: Math.random() > 0.5,
-      });
-
-      toast.success(`Livro "${title}" criado!`);
-    } catch (error) {
-      toast.error("Erro ao gerar livro");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const generateRandomPurchase = async () => {
-    setGenerating(true);
-    try {
-      if (books.length === 0) {
-        toast.error("Adicione livros primeiro!");
-        return;
-      }
-
-      const book = books[Math.floor(Math.random() * books.length)];
-      const { data: profiles } = await supabase.from('profiles').select('user_id').limit(1);
       
-      if (!profiles || profiles.length === 0) {
-        toast.error("Adicione usuários primeiro!");
-        return;
+      if (data?.data?.list) {
+        for (const product of data.data.list) {
+          await supabase.functions.invoke('cj-api', {
+            body: { action: 'importProduct', product, markup: 2.5 },
+          });
+        }
+        toast.success(`${data.data.list.length} produtos importados!`);
+        refetchProducts();
+      } else {
+        toast.error("Nenhum produto encontrado");
       }
-
-      const { error } = await supabase.from('purchase_history').insert({
-        user_id: profiles[0].user_id,
-        order_id: `TEST-${Date.now()}`,
-        product_handle: book.handle,
-        product_title: book.title,
-        product_image: book.image_url,
-        product_price: book.price,
-        quantity: Math.floor(Math.random() * 3) + 1,
-      });
-
-      if (error) throw error;
-      toast.success(`Compra de "${book.title}" registrada!`);
-    } catch (error) {
-      toast.error("Erro ao gerar compra");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao importar");
     } finally {
-      setGenerating(false);
+      setImporting(false);
     }
   };
 
@@ -378,14 +214,12 @@ const Admin = () => {
     );
   }
 
-  if (!isAdmin) {
-    return null;
-  }
+  if (!isAdmin) return null;
 
   return (
     <>
       <Helmet>
-        <title>Painel Administrativo | Orbe Livros</title>
+        <title>Admin | Dropshipping Store</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
@@ -393,36 +227,21 @@ const Admin = () => {
 
       <main className="min-h-screen pt-24 pb-16">
         <div className="container">
-          {/* Admin Header */}
           <div className="flex items-center gap-4 mb-8">
             <div className="p-3 bg-primary/10 rounded-full">
               <Shield className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <h1 className="font-serif text-3xl font-bold text-foreground">
-                Painel Administrativo
-              </h1>
-              <p className="text-muted-foreground">Gerencie todos os aspectos da loja</p>
+              <h1 className="font-serif text-3xl font-bold">Painel Admin</h1>
+              <p className="text-muted-foreground">Gerencie sua loja dropshipping</p>
             </div>
           </div>
 
-          <Tabs defaultValue="books" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-10 lg:w-auto lg:inline-grid">
-              <TabsTrigger value="books" className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4" />
-                <span className="hidden sm:inline">Livros</span>
-              </TabsTrigger>
-              <TabsTrigger value="monthly" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <span className="hidden sm:inline">Indicados</span>
-              </TabsTrigger>
-              <TabsTrigger value="promotions" className="flex items-center gap-2">
-                <Tag className="h-4 w-4" />
-                <span className="hidden sm:inline">Promoções</span>
-              </TabsTrigger>
-              <TabsTrigger value="comments" className="flex items-center gap-2">
-                <MessageCircle className="h-4 w-4" />
-                <span className="hidden sm:inline">Comentários</span>
+          <Tabs defaultValue="products" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+              <TabsTrigger value="products" className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                <span className="hidden sm:inline">Produtos</span>
               </TabsTrigger>
               <TabsTrigger value="contacts" className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
@@ -442,88 +261,98 @@ const Admin = () => {
               </TabsTrigger>
               <TabsTrigger value="settings" className="flex items-center gap-2">
                 <Palette className="h-4 w-4" />
-                <span className="hidden sm:inline">Estética</span>
-              </TabsTrigger>
-              <TabsTrigger value="tests" className="flex items-center gap-2">
-                <TestTube className="h-4 w-4" />
-                <span className="hidden sm:inline">Testes</span>
+                <span className="hidden sm:inline">Estilo</span>
               </TabsTrigger>
             </TabsList>
 
-            {/* Monthly Picks Tab */}
-            <TabsContent value="monthly">
-              <MonthlyPicksManager />
-            </TabsContent>
+            {/* Products Tab */}
+            <TabsContent value="products" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Download className="h-5 w-5" />
+                    Importar do CJ Dropshipping
+                  </CardTitle>
+                  <CardDescription>
+                    Busque e importe produtos automaticamente
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-4">
+                    <Input
+                      placeholder="Ex: smartphone, headphone, watch..."
+                      value={importKeyword}
+                      onChange={(e) => setImportKeyword(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button onClick={handleImportProducts} disabled={importing}>
+                      {importing ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-2" />
+                      )}
+                      Importar
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
-            {/* Books Tab */}
-            <TabsContent value="books" className="space-y-6">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    type="text"
-                    placeholder="Buscar livros..."
+                    placeholder="Buscar produtos..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
                   />
                 </div>
-                <Button onClick={handleCreate}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Livro
-                </Button>
-                <Button variant="outline" onClick={refetchBooks}>
+                <Button variant="outline" onClick={() => refetchProducts()}>
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
 
-              {booksLoading ? (
+              {productsLoading ? (
                 <div className="flex justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              ) : filteredBooks.length === 0 ? (
+              ) : filteredProducts.length === 0 ? (
                 <Card>
                   <CardContent className="text-center py-12">
-                    <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Nenhum livro encontrado</p>
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">Nenhum produto</p>
                   </CardContent>
                 </Card>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredBooks.map((book) => (
-                    <Card key={book.id}>
+                  {filteredProducts.map((product) => (
+                    <Card key={product.id}>
                       <CardContent className="pt-4">
                         <div className="flex gap-3">
-                          {book.image_url ? (
+                          {product.image_url ? (
                             <img
-                              src={book.image_url}
-                              alt={book.title}
-                              className="w-16 h-24 object-cover rounded"
+                              src={product.image_url}
+                              alt={product.title}
+                              className="w-16 h-16 object-cover rounded"
                             />
                           ) : (
-                            <div className="w-16 h-24 bg-muted rounded flex items-center justify-center">
-                              <BookOpen className="h-6 w-6 text-muted-foreground" />
+                            <div className="w-16 h-16 bg-muted rounded flex items-center justify-center">
+                              <Package className="h-6 w-6 text-muted-foreground" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-sm truncate">{book.title}</h3>
-                            <p className="text-xs text-muted-foreground truncate">{book.author}</p>
-                            <p className="text-sm text-primary font-semibold mt-1">
-                              R$ {book.price.toFixed(2).replace(".", ",")}
+                            <p className="font-medium truncate">{product.title}</p>
+                            <p className="text-sm text-muted-foreground">{product.category}</p>
+                            <p className="text-sm font-bold text-primary">
+                              R$ {product.price.toFixed(2)}
                             </p>
-                            <div className="flex gap-1 mt-2">
-                              {book.featured && <Badge variant="secondary" className="text-xs">Destaque</Badge>}
-                              {book.category && <Badge variant="outline" className="text-xs">{book.category}</Badge>}
-                            </div>
                           </div>
-                        </div>
-                        <div className="flex gap-2 mt-3">
-                          <Button size="sm" variant="outline" className="flex-1" onClick={() => handleEdit(book)}>
-                            <Edit className="h-3 w-3 mr-1" />
-                            Editar
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleDeleteBook(book)}>
-                            <Trash2 className="h-3 w-3" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteProduct(product)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
                       </CardContent>
@@ -533,21 +362,11 @@ const Admin = () => {
               )}
             </TabsContent>
 
-            {/* Promotions Tab */}
-            <TabsContent value="promotions">
-              <PromotionsManager />
-            </TabsContent>
-
-            {/* Comments Tab */}
-            <TabsContent value="comments">
-              <CommentsManager />
-            </TabsContent>
-
             {/* Contacts Tab */}
             <TabsContent value="contacts" className="space-y-6">
               <div className="flex justify-between items-center">
-                <h2 className="font-serif text-xl font-semibold">Mensagens de Clientes</h2>
-                <Button variant="outline" size="sm" onClick={refetchContacts}>
+                <h2 className="text-xl font-semibold">Mensagens de Contato</h2>
+                <Button variant="outline" onClick={refetchContacts}>
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
@@ -560,7 +379,7 @@ const Admin = () => {
                 <Card>
                   <CardContent className="text-center py-12">
                     <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Nenhuma mensagem recebida</p>
+                    <p className="text-muted-foreground">Nenhuma mensagem</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -568,45 +387,34 @@ const Admin = () => {
                   {contacts.map((contact) => (
                     <Card key={contact.id}>
                       <CardContent className="pt-4">
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <div>
                             <div className="flex items-center gap-2 mb-2">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{contact.name}</span>
-                              <Badge variant={contact.status === "resolved" ? "default" : "secondary"}>
-                                {contact.status === "resolved" ? (
-                                  <><CheckCircle className="h-3 w-3 mr-1" /> Resolvido</>
-                                ) : (
-                                  <><Clock className="h-3 w-3 mr-1" /> Pendente</>
-                                )}
+                              <p className="font-medium">{contact.name}</p>
+                              <Badge variant={contact.status === 'resolved' ? 'default' : 'secondary'}>
+                                {contact.status === 'resolved' ? 'Resolvido' : 'Pendente'}
                               </Badge>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                              <Mail className="h-3 w-3" />
-                              {contact.email}
-                            </div>
-                            <p className="text-sm font-medium mb-1">{contact.subject}</p>
-                            <p className="text-sm text-muted-foreground">{contact.message}</p>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              {new Date(contact.created_at).toLocaleString("pt-BR")}
-                            </p>
+                            <p className="text-sm text-muted-foreground">{contact.email}</p>
+                            <p className="text-sm font-medium mt-2">{contact.subject}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{contact.message}</p>
                           </div>
-                          <div className="flex sm:flex-col gap-2">
-                            <Select
-                              value={contact.status}
-                              onValueChange={(value) => handleContactStatus(contact.id, value)}
+                          <div className="flex gap-2">
+                            {contact.status !== 'resolved' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleContactStatus(contact.id, 'resolved')}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteContact(contact.id)}
                             >
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pending">Pendente</SelectItem>
-                                <SelectItem value="in_progress">Em Andamento</SelectItem>
-                                <SelectItem value="resolved">Resolvido</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Button size="sm" variant="destructive" onClick={() => handleDeleteContact(contact.id)}>
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
                         </div>
@@ -620,8 +428,8 @@ const Admin = () => {
             {/* Users Tab */}
             <TabsContent value="users" className="space-y-6">
               <div className="flex justify-between items-center">
-                <h2 className="font-serif text-xl font-semibold">Usuários Cadastrados</h2>
-                <Button variant="outline" size="sm" onClick={refetchUsers}>
+                <h2 className="text-xl font-semibold">Usuários</h2>
+                <Button variant="outline" onClick={refetchUsers}>
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
@@ -634,27 +442,30 @@ const Admin = () => {
                 <Card>
                   <CardContent className="text-center py-12">
                     <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Nenhum usuário cadastrado</p>
+                    <p className="text-muted-foreground">Nenhum usuário</p>
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {users.map((u) => (
-                    <Card key={u.id}>
+                <div className="grid gap-4">
+                  {users.map((user) => (
+                    <Card key={user.user_id}>
                       <CardContent className="pt-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary" />
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                              <User className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{user.full_name || 'Sem nome'}</p>
+                              <p className="text-sm text-muted-foreground">{user.user_id}</p>
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{u.full_name || "Sem nome"}</p>
-                            <p className="text-xs text-muted-foreground truncate">{u.user_id}</p>
-                            <Badge variant={u.role === "admin" ? "default" : "secondary"} className="mt-1">
-                              {u.role}
-                            </Badge>
-                          </div>
-                          <Button size="sm" variant="destructive" onClick={() => handleDeleteUser(u.user_id, u.full_name || "Usuário")}>
-                            <Trash2 className="h-4 w-4" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteUser(user.user_id, user.full_name || 'usuário')}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
                       </CardContent>
@@ -676,378 +487,75 @@ const Admin = () => {
 
             {/* Settings Tab */}
             <TabsContent value="settings" className="space-y-6">
-              {/* Contact Info Card */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-serif flex items-center gap-2">
-                    <Phone className="h-5 w-5" />
-                    Informações de Contato
-                  </CardTitle>
-                  <CardDescription>Configure telefone, email, endereço e redes sociais exibidos no site</CardDescription>
+                  <CardTitle>Aparência</CardTitle>
+                  <CardDescription>Personalize a aparência da loja</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Telefone</Label>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Nome da Loja</Label>
                       <Input
-                        id="phone"
-                        value={contactInfo.phone}
-                        onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
-                        placeholder="(11) 99999-9999"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={contactInfo.email}
-                        onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
-                        placeholder="contato@exemplo.com.br"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Endereço / Localização</Label>
-                    <Input
-                      id="address"
-                      value={contactInfo.address}
-                      onChange={(e) => setContactInfo({ ...contactInfo, address: e.target.value })}
-                      placeholder="São Paulo, Brasil"
-                    />
-                  </div>
-                  <div className="border-t pt-4 mt-4">
-                    <h4 className="font-medium mb-3">Redes Sociais</h4>
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="instagram">Instagram</Label>
-                        <Input
-                          id="instagram"
-                          value={contactInfo.instagram}
-                          onChange={(e) => setContactInfo({ ...contactInfo, instagram: e.target.value })}
-                          placeholder="https://instagram.com/..."
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="facebook">Facebook</Label>
-                        <Input
-                          id="facebook"
-                          value={contactInfo.facebook}
-                          onChange={(e) => setContactInfo({ ...contactInfo, facebook: e.target.value })}
-                          placeholder="https://facebook.com/..."
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="twitter">Twitter / X</Label>
-                        <Input
-                          id="twitter"
-                          value={contactInfo.twitter}
-                          onChange={(e) => setContactInfo({ ...contactInfo, twitter: e.target.value })}
-                          placeholder="https://twitter.com/..."
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="youtube">YouTube</Label>
-                        <Input
-                          id="youtube"
-                          value={contactInfo.youtube}
-                          onChange={(e) => setContactInfo({ ...contactInfo, youtube: e.target.value })}
-                          placeholder="https://youtube.com/..."
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <Button onClick={handleSaveContactInfo}>
-                    Salvar Informações de Contato
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Appearance Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-serif flex items-center gap-2">
-                    <Palette className="h-5 w-5" />
-                    Personalização do Site
-                  </CardTitle>
-                  <CardDescription>Configure a aparência da loja</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="storeName">Nome da Loja</Label>
-                      <Input
-                        id="storeName"
                         value={siteSettings.storeName}
                         onChange={(e) => setSiteSettings({ ...siteSettings, storeName: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="primaryColor">Cor Principal</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="primaryColor"
-                          type="color"
-                          value={siteSettings.primaryColor}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, primaryColor: e.target.value })}
-                          className="w-16 h-10 p-1"
-                        />
-                        <Input
-                          value={siteSettings.primaryColor}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, primaryColor: e.target.value })}
-                          placeholder="#d4a5a5"
-                        />
-                      </div>
+                    <div>
+                      <Label>Título do Hero</Label>
+                      <Input
+                        value={siteSettings.heroTitle}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, heroTitle: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Subtítulo do Hero</Label>
+                      <Input
+                        value={siteSettings.heroSubtitle}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitle: e.target.value })}
+                      />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="heroTitle">Título do Hero</Label>
-                    <Input
-                      id="heroTitle"
-                      value={siteSettings.heroTitle}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, heroTitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="heroSubtitle">Subtítulo do Hero</Label>
-                    <Textarea
-                      id="heroSubtitle"
-                      value={siteSettings.heroSubtitle}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitle: e.target.value })}
-                    />
-                  </div>
-                  <Button onClick={handleSaveSettings}>
-                    Salvar Aparência
-                  </Button>
+                  <Button onClick={handleSaveSettings}>Salvar Aparência</Button>
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            {/* Tests Tab */}
-            <TabsContent value="tests" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-serif flex items-center gap-2">
-                    <TestTube className="h-5 w-5" />
-                    Geração de Dados de Teste
-                  </CardTitle>
-                  <CardDescription>Popule e limpe o banco de dados com dados de teste (apenas ambiente de desenvolvimento)</CardDescription>
+                  <CardTitle>Informações de Contato</CardTitle>
+                  <CardDescription>Dados exibidos no rodapé</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    <Button
-                      variant="outline"
-                      onClick={generateRandomProfile}
-                      disabled={generating}
-                      className="h-auto py-4 flex flex-col gap-2"
-                    >
-                      {generating ? (
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      ) : (
-                        <User className="h-6 w-6" />
-                      )}
-                      <span>Gerar Perfil</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={generateRandomBook}
-                      disabled={generating}
-                      className="h-auto py-4 flex flex-col gap-2"
-                    >
-                      {generating ? (
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      ) : (
-                        <BookOpen className="h-6 w-6" />
-                      )}
-                      <span>Gerar Livro</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={generateRandomPurchase}
-                      disabled={generating}
-                      className="h-auto py-4 flex flex-col gap-2"
-                    >
-                      {generating ? (
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-6 w-6" />
-                      )}
-                      <span>Gerar Compra</span>
-                    </Button>
-                  </div>
-
-                  <div className="border-t pt-4 space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      Use os botões abaixo para limpar apenas dados de teste gerados automaticamente. Dados reais de clientes não serão afetados.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button
-                        variant="destructive"
-                        disabled={generating}
-                        className="flex-1"
-                        onClick={async () => {
-                          if (!confirm("Tem certeza que deseja apagar TODOS os dados de teste?")) return;
-                          setGenerating(true);
-                          try {
-                            await supabase.from('purchase_history').delete().like('order_id', 'TEST-%');
-                            await supabase.from('books').delete().like('title', '[TEST]%');
-                            await supabase.from('profiles').delete().like('full_name', 'Teste - %');
-                            toast.success("Dados de teste removidos com sucesso!");
-                            refetchBooks();
-                            refetchUsers();
-                            refetchContacts();
-                          } catch (error) {
-                            toast.error("Erro ao limpar dados de teste");
-                          } finally {
-                            setGenerating(false);
-                          }
-                        }}
-                      >
-                        Limpar dados de teste
-                      </Button>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Telefone</Label>
+                      <Input
+                        value={contactInfo.phone}
+                        onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Email</Label>
+                      <Input
+                        value={contactInfo.email}
+                        onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Endereço</Label>
+                      <Input
+                        value={contactInfo.address}
+                        onChange={(e) => setContactInfo({ ...contactInfo, address: e.target.value })}
+                      />
                     </div>
                   </div>
+                  <Button onClick={handleSaveContactInfo}>Salvar Contato</Button>
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
         </div>
       </main>
-
-      {/* Edit/Create Modal */}
-      {(editingBook || isCreating) && (
-        <div className="fixed inset-0 z-50 bg-foreground/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <Card className="w-full max-w-2xl my-8">
-            <CardHeader>
-              <CardTitle className="font-serif flex items-center gap-2">
-                {isCreating ? <Plus className="h-5 w-5" /> : <Edit className="h-5 w-5" />}
-                {isCreating ? "Novo Livro" : "Editar Livro"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Título *</Label>
-                  <Input
-                    id="title"
-                    value={editForm.title}
-                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="author">Autor</Label>
-                  <Input
-                    id="author"
-                    value={editForm.author}
-                    onChange={(e) => setEditForm({ ...editForm, author: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Descrição</Label>
-                <Textarea
-                  id="description"
-                  value={editForm.description}
-                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price">Preço (R$) *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    value={editForm.price}
-                    onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="original_price">Preço Original (R$)</Label>
-                  <Input
-                    id="original_price"
-                    type="number"
-                    step="0.01"
-                    value={editForm.original_price}
-                    onChange={(e) => setEditForm({ ...editForm, original_price: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Categoria</Label>
-                  <Select
-                    value={editForm.category}
-                    onValueChange={(value) => setEditForm({ ...editForm, category: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="handle">Handle (URL)</Label>
-                  <Input
-                    id="handle"
-                    value={editForm.handle}
-                    onChange={(e) => setEditForm({ ...editForm, handle: e.target.value })}
-                    placeholder="titulo-do-livro"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="image_url">URL da Imagem</Label>
-                  <Input
-                    id="image_url"
-                    value={editForm.image_url}
-                    onChange={(e) => setEditForm({ ...editForm, image_url: e.target.value })}
-                    placeholder="https://..."
-                  />
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={editForm.in_stock}
-                    onChange={(e) => setEditForm({ ...editForm, in_stock: e.target.checked })}
-                    className="rounded"
-                  />
-                  <span className="text-sm">Em estoque</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={editForm.featured}
-                    onChange={(e) => setEditForm({ ...editForm, featured: e.target.checked })}
-                    className="rounded"
-                  />
-                  <span className="text-sm">Destaque</span>
-                </label>
-              </div>
-              <div className="flex gap-4 pt-4">
-                <Button onClick={handleSave}>
-                  {isCreating ? "Criar Livro" : "Salvar Alterações"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEditingBook(null);
-                    setIsCreating(false);
-                  }}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
       <Footer />
     </>
