@@ -7,9 +7,15 @@ const corsHeaders = {
 };
 
 const CJ_API_BASE = "https://developers.cjdropshipping.com/api2.0/v1";
+
+// Token cache (DB + memory) to avoid CJ auth rate limit (1 request / 300s)
 const TOKEN_CACHE_KEY = "cj_access_token";
-const TOKEN_VALIDITY_SECONDS = 86400; // CJ tokens are valid for 24 hours, but we'll refresh after 23h to be safe
-const TOKEN_REFRESH_BUFFER = 3600; // Refresh 1 hour before expiry
+const TOKEN_VALIDITY_SECONDS = 86400; // we assume 24h; adjust later if CJ docs differ
+const TOKEN_REFRESH_BUFFER = 3600; // refresh 1h before expiry
+const AUTH_COOLDOWN_SECONDS = 300; // CJ: 1 auth request / 300 seconds
+
+let inMemoryToken: { token: string; expiresAtMs: number } | null = null;
+let inFlightTokenPromise: Promise<string> | null = null;
 
 interface CJApiResponse {
   code: number;
@@ -19,64 +25,164 @@ interface CJApiResponse {
   requestId: string;
 }
 
-interface TokenCache {
-  token: string;
-  expires_at: string;
+interface TokenCacheValue {
+  token?: unknown;
+  expires_at?: string;
+  last_auth_attempt_at?: string;
+  last_auth_error_at?: string;
+  last_auth_error?: string;
+}
+
+function extractAccessToken(token: unknown): string | null {
+  if (!token) return null;
+  if (typeof token === "string") return token;
+  if (typeof token === "object") {
+    const t = token as Record<string, unknown>;
+    if (typeof t.accessToken === "string") return t.accessToken;
+    if (typeof t.token === "string") return t.token;
+  }
+  return null;
 }
 
 async function getAccessToken(supabaseClient: SupabaseClient): Promise<string> {
-  // Check for cached token in site_settings table
-  const { data: cached } = await supabaseClient
-    .from("site_settings")
-    .select("value")
-    .eq("key", TOKEN_CACHE_KEY)
-    .single();
+  // 1) Fast path: in-memory cache (best effort)
+  if (inMemoryToken && inMemoryToken.expiresAtMs - Date.now() > TOKEN_REFRESH_BUFFER * 1000) {
+    return inMemoryToken.token;
+  }
 
-  if (cached?.value) {
-    const tokenData = cached.value as TokenCache;
-    const expiresAt = new Date(tokenData.expires_at);
-    const now = new Date();
-    
-    // Return cached token if still valid (with buffer)
-    if (expiresAt.getTime() - now.getTime() > TOKEN_REFRESH_BUFFER * 1000) {
-      console.log("Using cached CJ access token");
-      return tokenData.token;
+  // 2) De-dup concurrent requests in the same runtime
+  if (inFlightTokenPromise) return inFlightTokenPromise;
+
+  inFlightTokenPromise = (async () => {
+    // 3) DB cache (persists across invocations)
+    const { data: cachedRow, error: cachedError } = await supabaseClient
+      .from("site_settings")
+      .select("value")
+      .eq("key", TOKEN_CACHE_KEY)
+      .maybeSingle();
+
+    if (cachedError) {
+      console.warn("Failed to read CJ token cache:", cachedError.message);
     }
+
+    const cached = (cachedRow?.value as TokenCacheValue | null) ?? null;
+    const cachedToken = extractAccessToken(cached?.token);
+
+    if (cachedToken && cached?.expires_at) {
+      const expiresAtMs = new Date(cached.expires_at).getTime();
+      if (expiresAtMs - Date.now() > TOKEN_REFRESH_BUFFER * 1000) {
+        inMemoryToken = { token: cachedToken, expiresAtMs };
+        return cachedToken;
+      }
+    }
+
+    // 4) Cooldown guard: avoid hammering CJ auth endpoint
+    if (cached?.last_auth_attempt_at) {
+      const lastAttemptMs = new Date(cached.last_auth_attempt_at).getTime();
+      const remainingMs = AUTH_COOLDOWN_SECONDS * 1000 - (Date.now() - lastAttemptMs);
+      if (remainingMs > 0) {
+        const fallbackToken = extractAccessToken(cached?.token);
+        if (fallbackToken) {
+          console.warn("CJ auth cooldown active; using existing cached token as fallback");
+          inMemoryToken = {
+            token: fallbackToken,
+            expiresAtMs: cached?.expires_at ? new Date(cached.expires_at).getTime() : Date.now() + 5 * 60 * 1000,
+          };
+          return fallbackToken;
+        }
+
+        const waitSec = Math.ceil(remainingMs / 1000);
+        throw new Error(`CJ em cooldown (${waitSec}s). Aguarde e tente novamente.`);
+      }
+    }
+
+    // 5) Fetch new token
+    const apiKey = Deno.env.get("CJ_API_KEY");
+    const email = Deno.env.get("CJ_EMAIL");
+
+    if (!apiKey || !email) {
+      throw new Error("CJ API credentials not configured");
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // Record attempt (so repeated clicks won't waste quota)
+    await supabaseClient
+      .from("site_settings")
+      .upsert(
+        {
+          key: TOKEN_CACHE_KEY,
+          value: { ...(cached ?? {}), last_auth_attempt_at: nowIso },
+          updated_at: nowIso,
+        },
+        { onConflict: "key" }
+      );
+
+    console.log("Fetching new CJ access token...");
+    const response = await fetch(`${CJ_API_BASE}/authentication/getAccessToken`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: apiKey }),
+    });
+
+    const data: CJApiResponse = await response.json();
+
+    if (!data.result) {
+      // Persist error info to help diagnose + enforce cooldown
+      await supabaseClient.from("site_settings").upsert(
+        {
+          key: TOKEN_CACHE_KEY,
+          value: {
+            ...(cached ?? {}),
+            last_auth_attempt_at: nowIso,
+            last_auth_error_at: nowIso,
+            last_auth_error: data.message,
+          },
+          updated_at: nowIso,
+        },
+        { onConflict: "key" }
+      );
+
+      const msg = data.message || "Authentication failed";
+      if (msg.toLowerCase().includes("too many requests") || msg.toLowerCase().includes("qps")) {
+        throw new Error(`CJ em cooldown (${AUTH_COOLDOWN_SECONDS}s). Aguarde e tente novamente.`);
+      }
+
+      throw new Error(`CJ Auth failed: ${msg}`);
+    }
+
+    const extractedToken = extractAccessToken(data.data);
+    if (!extractedToken) {
+      throw new Error("CJ Auth returned unexpected token format");
+    }
+
+    const newToken = extractedToken;
+    const expiresAtMs = Date.now() + TOKEN_VALIDITY_SECONDS * 1000;
+    const expiresAtIso = new Date(expiresAtMs).toISOString();
+
+    await supabaseClient.from("site_settings").upsert(
+      {
+        key: TOKEN_CACHE_KEY,
+        value: {
+          token: newToken,
+          expires_at: expiresAtIso,
+          last_auth_attempt_at: nowIso,
+        },
+        updated_at: nowIso,
+      },
+      { onConflict: "key" }
+    );
+
+    inMemoryToken = { token: newToken, expiresAtMs };
+    console.log("New CJ token cached, expires at:", expiresAtIso);
+    return newToken;
+  })();
+
+  try {
+    return await inFlightTokenPromise;
+  } finally {
+    inFlightTokenPromise = null;
   }
-
-  // Need to fetch new token
-  const apiKey = Deno.env.get("CJ_API_KEY");
-  const email = Deno.env.get("CJ_EMAIL");
-  
-  if (!apiKey || !email) {
-    throw new Error("CJ API credentials not configured");
-  }
-
-  console.log("Fetching new CJ access token...");
-  const response = await fetch(`${CJ_API_BASE}/authentication/getAccessToken`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password: apiKey }),
-  });
-
-  const data: CJApiResponse = await response.json();
-  
-  if (!data.result) {
-    throw new Error(`CJ Auth failed: ${data.message}`);
-  }
-
-  const newToken = data.data as string;
-  const expiresAt = new Date(Date.now() + TOKEN_VALIDITY_SECONDS * 1000);
-
-  // Cache the new token
-  await supabaseClient.from("site_settings").upsert({
-    key: TOKEN_CACHE_KEY,
-    value: { token: newToken, expires_at: expiresAt.toISOString() },
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "key" });
-
-  console.log("New CJ token cached, expires at:", expiresAt.toISOString());
-  return newToken;
 }
 
 async function cjRequest(supabaseClient: SupabaseClient, endpoint: string, method: string = "GET", body?: unknown): Promise<CJApiResponse> {
@@ -104,10 +210,14 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error("Backend credentials not configured (missing SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY)");
+    }
+
+    const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
 
     const { action, ...params } = await req.json();
 
@@ -370,9 +480,12 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error("CJ API Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+
+    const status = errorMessage.startsWith("CJ em cooldown") ? 429 : 500;
+
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
