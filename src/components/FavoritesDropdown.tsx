@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Heart, X, ShoppingCart } from "lucide-react";
+import { Heart, X, ShoppingCart, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import { useCartStore } from "@/stores/cartStore";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Product } from "@/hooks/useProducts";
 
 export const FavoritesDropdown = () => {
   const { user } = useAuth();
@@ -24,51 +25,41 @@ export const FavoritesDropdown = () => {
     e.preventDefault();
     e.stopPropagation();
     
-    const cartItem = {
-      product: {
-        node: {
-          id: `fav-${favorite.id}`,
-          title: favorite.product_title,
-          description: "",
-          handle: favorite.product_handle,
-          priceRange: {
-            minVariantPrice: {
-              amount: String(favorite.product_price || 0),
-              currencyCode: "BRL",
-            },
-          },
-          images: {
-            edges: favorite.product_image ? [{ node: { url: favorite.product_image, altText: favorite.product_title } }] : [],
-          },
-          variants: {
-            edges: [{
-              node: {
-                id: `gid://shopify/ProductVariant/fav-${favorite.id}`,
-                title: "Default",
-                price: { amount: String(favorite.product_price || 0), currencyCode: "BRL" },
-                availableForSale: true,
-                selectedOptions: [],
-              }
-            }],
-          },
-          options: [],
-        },
-      },
-      variantId: `gid://shopify/ProductVariant/fav-${favorite.id}`,
-      variantTitle: "Default",
-      price: { amount: String(favorite.product_price || 0), currencyCode: "BRL" },
-      quantity: 1,
-      selectedOptions: [],
+    // Create a Product object from favorite data
+    const product: Product = {
+      id: favorite.id,
+      cj_product_id: null,
+      cj_variant_id: null,
+      title: favorite.product_title,
+      description: null,
+      category: null,
+      handle: favorite.product_handle,
+      price: favorite.product_price || 0,
+      compare_at_price: null,
+      cost_price: null,
+      currency: "BRL",
+      image_url: favorite.product_image,
+      images: [],
+      sku: null,
+      in_stock: true,
+      stock_quantity: 1,
+      weight: null,
+      cj_category_id: null,
+      supplier_name: "CJ Dropshipping",
+      shipping_time: null,
+      created_at: favorite.created_at,
+      updated_at: favorite.created_at,
     };
     
-    addItem(cartItem);
+    addItem(product);
     toast.success("Adicionado ao carrinho!");
   };
 
-  const handleRemove = async (handle: string, e: React.MouseEvent) => {
+  const handleRemove = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    await removeFavorite(handle);
+    await removeFavorite(id);
+    toast.success("Removido dos favoritos");
   };
 
   if (!user) {
@@ -105,7 +96,7 @@ export const FavoritesDropdown = () => {
           <div className="p-4 text-center text-muted-foreground text-sm">
             <Heart className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>Nenhum favorito ainda</p>
-            <p className="text-xs mt-1">Clique no ❤️ nos livros para salvar</p>
+            <p className="text-xs mt-1">Clique no ❤️ nos produtos para salvar</p>
           </div>
         ) : (
           <>
@@ -124,7 +115,7 @@ export const FavoritesDropdown = () => {
                       />
                     ) : (
                       <div className="w-12 h-16 bg-muted rounded flex items-center justify-center">
-                        <Heart className="h-4 w-4 text-muted-foreground" />
+                        <Package className="h-4 w-4 text-muted-foreground" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
@@ -148,7 +139,7 @@ export const FavoritesDropdown = () => {
                         size="icon"
                         variant="ghost"
                         className="h-7 w-7 text-destructive hover:text-destructive"
-                        onClick={(e) => handleRemove(favorite.product_handle, e)}
+                        onClick={(e) => handleRemove(favorite.id, e)}
                       >
                         <X className="h-4 w-4" />
                       </Button>

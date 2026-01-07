@@ -1,45 +1,29 @@
 import { Button } from "@/components/ui/button";
 import { Heart, ShoppingBag } from "lucide-react";
-import { ShopifyProduct } from "@/lib/shopify";
+import { Product } from "@/hooks/useProducts";
 import { useCartStore } from "@/stores/cartStore";
 import { useFavorites } from "@/hooks/useFavorites";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
 interface ProductCardProps {
-  product: ShopifyProduct;
+  product: Product;
   index?: number;
 }
 
 export const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
   const addItem = useCartStore(state => state.addItem);
   const { isFavorite, toggleFavorite } = useFavorites();
-  const { node } = product;
   
-  const firstVariant = node.variants.edges[0]?.node;
-  const price = parseFloat(node.priceRange.minVariantPrice.amount);
-  const imageUrl = node.images.edges[0]?.node.url;
-  const imageAlt = node.images.edges[0]?.node.altText || node.title;
-  const isProductFavorite = isFavorite(node.handle);
+  const isProductFavorite = isFavorite(product.handle);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!firstVariant) return;
-
-    const cartItem = {
-      product,
-      variantId: firstVariant.id,
-      variantTitle: firstVariant.title,
-      price: firstVariant.price,
-      quantity: 1,
-      selectedOptions: firstVariant.selectedOptions || []
-    };
-    
-    addItem(cartItem);
+    addItem(product);
     toast.success("Adicionado ao carrinho!", {
-      description: node.title,
+      description: product.title,
       position: "top-center"
     });
   };
@@ -49,10 +33,10 @@ export const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
     e.stopPropagation();
     
     await toggleFavorite({
-      handle: node.handle,
-      title: node.title,
-      image: imageUrl,
-      price: price,
+      handle: product.handle,
+      title: product.title,
+      image: product.image_url || undefined,
+      price: product.price,
     });
   };
 
@@ -61,7 +45,7 @@ export const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
       className="group animate-fade-up"
       style={{ animationDelay: `${index * 0.1}s` }}
     >
-      <Link to={`/produto/${node.handle}`}>
+      <Link to={`/produto/${product.handle}`}>
         <div className="relative overflow-hidden rounded-2xl bg-card mb-4">
           <button 
             className={`absolute top-4 right-4 z-10 w-10 h-10 bg-background/80 backdrop-blur-sm rounded-full flex items-center justify-center transition-all duration-300 hover:bg-background ${
@@ -79,10 +63,10 @@ export const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
           </button>
 
           <div className="aspect-[3/4] overflow-hidden bg-muted">
-            {imageUrl ? (
+            {product.image_url ? (
               <img
-                src={imageUrl}
-                alt={imageAlt}
+                src={product.image_url}
+                alt={product.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
             ) : (
@@ -98,28 +82,34 @@ export const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
               size="sm" 
               className="w-full"
               onClick={handleAddToCart}
+              disabled={!product.in_stock}
             >
               <ShoppingBag className="h-4 w-4" />
-              Adicionar
+              {product.in_stock ? "Adicionar" : "Indisponível"}
             </Button>
           </div>
         </div>
 
         <div>
           <h3 className="font-serif font-semibold text-foreground text-lg leading-tight mb-1 group-hover:text-primary transition-colors line-clamp-2">
-            {node.title}
+            {product.title}
           </h3>
 
-          {node.description && (
+          {product.description && (
             <p className="text-muted-foreground text-sm mb-3 line-clamp-1">
-              {node.description}
+              {product.description}
             </p>
           )}
 
           <div className="flex items-center gap-2">
             <span className="font-bold text-primary text-lg">
-              R$ {price.toFixed(2).replace(".", ",")}
+              R$ {product.price.toFixed(2).replace(".", ",")}
             </span>
+            {product.compare_at_price && product.compare_at_price > product.price && (
+              <span className="text-sm text-muted-foreground line-through">
+                R$ {product.compare_at_price.toFixed(2).replace(".", ",")}
+              </span>
+            )}
           </div>
         </div>
       </Link>

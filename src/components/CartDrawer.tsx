@@ -8,7 +8,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ShoppingBag, Minus, Plus, Trash2, CreditCard, Loader2, LogIn } from "lucide-react";
+import { ShoppingBag, Minus, Plus, Trash2, CreditCard, Loader2, LogIn, Package } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,53 +31,9 @@ export const CartDrawer = () => {
   const totalItems = getTotalItems();
   const totalPrice = getTotalPrice();
 
-  // ==========================================
-  // STRIPE CHECKOUT (comentado - mantido para uso futuro)
-  // ==========================================
-  // const handleStripeCheckout = async () => {
-  //   if (items.length === 0) return;
-
-  //   setIsProcessing(true);
-  //   try {
-  //     // Format items for Stripe checkout
-  //     const checkoutItems = items.map(item => ({
-  //       name: item.product.node.title,
-  //       price: parseFloat(item.price.amount),
-  //       quantity: item.quantity,
-  //       image: item.product.node.images?.edges?.[0]?.node?.url || undefined,
-  //     }));
-
-  //     const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
-  //       body: { items: checkoutItems },
-  //     });
-
-  //     if (error) {
-  //       throw new Error(error.message);
-  //     }
-
-  //     if (data?.url) {
-  //       window.open(data.url, '_blank');
-  //       setIsOpen(false);
-  //     } else {
-  //       throw new Error('No checkout URL returned');
-  //     }
-  //   } catch (error) {
-  //     console.error('Stripe checkout failed:', error);
-  //     toast.error("Erro ao criar checkout", {
-  //       description: "Por favor, tente novamente."
-  //     });
-  //   } finally {
-  //     setIsProcessing(false);
-  //   }
-  // };
-
-  // ==========================================
-  // PAGBANK CHECKOUT (ativo)
-  // ==========================================
   const handlePagBankCheckout = async () => {
     if (items.length === 0) return;
 
-    // Verificar se usuário está logado
     if (!user) {
       toast.error("Faça login para continuar", {
         description: "Você precisa estar logado para finalizar a compra."
@@ -89,13 +45,12 @@ export const CartDrawer = () => {
 
     setIsProcessing(true);
     try {
-      // Format items for PagBank checkout with handle for purchase history
       const checkoutItems = items.map(item => ({
-        name: item.product.node.title,
-        price: parseFloat(item.price.amount),
+        name: item.product.title,
+        price: item.product.price,
         quantity: item.quantity,
-        image: item.product.node.images?.edges?.[0]?.node?.url || undefined,
-        handle: item.product.node.handle,
+        image: item.product.image_url || undefined,
+        handle: item.product.handle,
       }));
 
       const { data, error } = await supabase.functions.invoke('create-pagbank-checkout', {
@@ -147,9 +102,9 @@ export const CartDrawer = () => {
           {items.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <ShoppingBag className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                <Package className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
                 <p className="text-muted-foreground text-sm sm:text-base">Seu carrinho está vazio</p>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-2">Adicione livros para continuar</p>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-2">Adicione produtos para continuar</p>
               </div>
             </div>
           ) : (
@@ -157,28 +112,27 @@ export const CartDrawer = () => {
               <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 min-h-0">
                 <div className="space-y-3 sm:space-y-4">
                   {items.map((item) => (
-                    <div key={item.variantId} className="flex gap-2 sm:gap-4 p-2 sm:p-3 bg-card rounded-xl">
+                    <div key={item.product.id} className="flex gap-2 sm:gap-4 p-2 sm:p-3 bg-card rounded-xl">
                       <div className="w-12 h-16 sm:w-16 sm:h-20 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                        {item.product.node.images?.edges?.[0]?.node && (
+                        {item.product.image_url ? (
                           <img
-                            src={item.product.node.images.edges[0].node.url}
-                            alt={item.product.node.title}
+                            src={item.product.image_url}
+                            alt={item.product.title}
                             className="w-full h-full object-cover"
                           />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="h-6 w-6 text-muted-foreground" />
+                          </div>
                         )}
                       </div>
                       
                       <div className="flex-1 min-w-0">
                         <h4 className="font-serif font-medium text-xs sm:text-sm leading-tight line-clamp-2">
-                          {item.product.node.title}
+                          {item.product.title}
                         </h4>
-                        {item.variantTitle !== "Default Title" && (
-                          <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
-                            {item.variantTitle}
-                          </p>
-                        )}
                         <p className="font-semibold text-primary mt-1 sm:mt-2 text-sm sm:text-base">
-                          R$ {parseFloat(item.price.amount).toFixed(2).replace(".", ",")}
+                          R$ {item.product.price.toFixed(2).replace(".", ",")}
                         </p>
                       </div>
                       
@@ -187,7 +141,7 @@ export const CartDrawer = () => {
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 sm:h-7 sm:w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => removeItem(item.variantId)}
+                          onClick={() => removeItem(item.product.id)}
                         >
                           <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
@@ -197,7 +151,8 @@ export const CartDrawer = () => {
                             variant="outline"
                             size="icon"
                             className="h-6 w-6 sm:h-7 sm:w-7"
-                            onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
+                            onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                            disabled={item.quantity <= 1}
                           >
                             <Minus className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                           </Button>
@@ -206,7 +161,7 @@ export const CartDrawer = () => {
                             variant="outline"
                             size="icon"
                             className="h-6 w-6 sm:h-7 sm:w-7"
-                            onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
+                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                           >
                             <Plus className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                           </Button>
