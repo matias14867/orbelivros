@@ -1,16 +1,13 @@
 import { useState, useMemo, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { useSearchParams, Link } from "react-router-dom";
-import { useBooks, Book } from "@/hooks/useBooks";
-import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
+import { useProducts, useProductCategories } from "@/hooks/useProducts";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useBookRatings } from "@/hooks/useBookRatings";
-import { Loader2, BookOpen, Filter, Search, X, ShoppingCart, Heart, SlidersHorizontal, Star } from "lucide-react";
+import { Loader2, BookOpen, Filter, Search, X, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -18,210 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { ProductCard } from "@/components/ProductCard";
-import { useCartStore } from "@/stores/cartStore";
-import { useFavorites } from "@/hooks/useFavorites";
-import { toast } from "sonner";
 import { PriceFilter } from "@/components/PriceFilter";
-import { RatingStars } from "@/components/RatingStars";
-import { BookRating } from "@/hooks/useBookRatings";
-
-const CATEGORIES = [
-  { value: "all", label: "Todas as Categorias" },
-  { value: "Romance", label: "Romance" },
-  { value: "Autoajuda", label: "Autoajuda" },
-  { value: "Ficção", label: "Ficção" },
-  { value: "Poesia", label: "Poesia" },
-  { value: "Clássicos", label: "Clássicos" },
-  { value: "Drama", label: "Drama" },
-  { value: "Fantasia", label: "Fantasia" },
-  { value: "Distopia", label: "Distopia" },
-  { value: "Literatura Brasileira", label: "Literatura Brasileira" },
-  { value: "Infantojuvenil", label: "Infantojuvenil" },
-  { value: "Tragédia", label: "Tragédia" },
-  { value: "Suspense", label: "Suspense" },
-];
-
-// Component for database books
-const DatabaseBookCard = ({ book, rating }: { book: Book; rating?: BookRating }) => {
-  const addItem = useCartStore((state) => state.addItem);
-  const { toggleFavorite, isFavorite } = useFavorites();
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const cartItem = {
-      product: {
-        node: {
-          id: `db-${book.id}`,
-          title: book.title,
-          description: book.description || "",
-          handle: book.handle,
-          priceRange: {
-            minVariantPrice: {
-              amount: String(book.price),
-              currencyCode: "BRL",
-            },
-          },
-          images: {
-            edges: book.image_url ? [{ node: { url: book.image_url, altText: book.title } }] : [],
-          },
-          variants: {
-            edges: [{
-              node: {
-                id: `gid://shopify/ProductVariant/db-${book.id}`,
-                title: "Default",
-                price: { amount: String(book.price), currencyCode: "BRL" },
-                availableForSale: book.in_stock ?? true,
-                selectedOptions: [],
-              }
-            }],
-          },
-          options: [],
-        },
-      },
-      variantId: `gid://shopify/ProductVariant/db-${book.id}`,
-      variantTitle: "Default",
-      price: { amount: String(book.price), currencyCode: "BRL" },
-      quantity: 1,
-      selectedOptions: [],
-    };
-    
-    addItem(cartItem);
-    toast.success("Adicionado ao carrinho!");
-  };
-
-  const handleToggleFavorite = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    await toggleFavorite({
-      handle: book.handle,
-      title: book.title,
-      image: book.image_url || undefined,
-      price: book.price,
-    });
-  };
-
-  const isBookFavorite = isFavorite(book.handle);
-
-  return (
-    <Link
-      to={`/produto/${book.handle}`}
-      className="group bg-card rounded-2xl shadow-card overflow-hidden hover-lift animate-fade-up"
-    >
-      <div className="aspect-[3/4] relative overflow-hidden bg-muted">
-        {book.image_url ? (
-          <img
-            src={book.image_url}
-            alt={book.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-            <div className="text-center p-4">
-              <BookOpen className="h-12 w-12 text-primary/50 mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground font-medium line-clamp-2">{book.title}</p>
-            </div>
-          </div>
-        )}
-        
-        <div className="absolute top-3 left-3 flex flex-col gap-2">
-          {book.featured && (
-            <Badge className="bg-primary text-primary-foreground">Destaque</Badge>
-          )}
-          {book.original_price && book.original_price > book.price && (
-            <Badge variant="destructive">
-              -{Math.round(((book.original_price - book.price) / book.original_price) * 100)}%
-            </Badge>
-          )}
-        </div>
-
-        <button
-          onClick={handleToggleFavorite}
-          className="absolute top-3 right-3 p-2 rounded-full bg-background/80 hover:bg-background transition-colors"
-        >
-          <Heart
-            className={`h-4 w-4 ${isBookFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`}
-          />
-        </button>
-
-        <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-background/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button onClick={handleAddToCart} className="w-full" size="sm">
-            <ShoppingCart className="h-4 w-4 mr-2" />
-            Adicionar
-          </Button>
-        </div>
-      </div>
-
-      <div className="p-4">
-        {book.category && (
-          <span className="text-xs text-primary font-medium uppercase tracking-wide">
-            {book.category}
-          </span>
-        )}
-        <h3 className="font-serif font-semibold text-foreground mt-1 line-clamp-2 group-hover:text-primary transition-colors">
-          {book.title}
-        </h3>
-        {book.author && (
-          <p className="text-sm text-muted-foreground mt-1">{book.author}</p>
-        )}
-        {rating && (
-          <div className="mt-2">
-            <RatingStars 
-              rating={rating.average_rating} 
-              totalReviews={rating.total_reviews} 
-            />
-          </div>
-        )}
-        <div className="flex items-center gap-2 mt-2">
-          <span className="text-lg font-bold text-primary">
-            R$ {book.price.toFixed(2).replace(".", ",")}
-          </span>
-          {book.original_price && book.original_price > book.price && (
-            <span className="text-sm text-muted-foreground line-through">
-              R$ {book.original_price.toFixed(2).replace(".", ",")}
-            </span>
-          )}
-        </div>
-      </div>
-    </Link>
-  );
-};
-
-// Unified product interface
-interface UnifiedProduct {
-  id: string;
-  title: string;
-  author: string | null;
-  description: string | null;
-  price: number;
-  originalPrice: number | null;
-  category: string | null;
-  imageUrl: string | null;
-  handle: string;
-  inStock: boolean;
-  featured: boolean;
-  source: "database" | "shopify";
-  originalData: Book | ShopifyProduct;
-}
 
 const AllBooks = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { books: dbBooks, loading: dbLoading } = useBooks();
-  const { ratings: bookRatings, getRating } = useBookRatings();
-  const [shopifyProducts, setShopifyProducts] = useState<ShopifyProduct[]>([]);
-  const [shopifyLoading, setShopifyLoading] = useState(true);
+  const { data: products, isLoading } = useProducts();
+  const { data: categories } = useProductCategories();
   const [sortBy, setSortBy] = useState<string>("newest");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
-  const [filterAuthor, setFilterAuthor] = useState<string>("all");
-  const [filterRating, setFilterRating] = useState<string>("all");
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [showOnlyInStock, setShowOnlyInStock] = useState(false);
   
   const urlCategory = searchParams.get("categoria") || "all";
@@ -229,103 +31,20 @@ const AllBooks = () => {
   const [filterCategory, setFilterCategory] = useState<string>(urlCategory);
   const [searchQuery, setSearchQuery] = useState<string>(urlSearch);
 
-  // Load Shopify products
-  useEffect(() => {
-    const loadShopifyProducts = async () => {
-      try {
-        setShopifyLoading(true);
-        const data = await fetchProducts(100);
-        setShopifyProducts(data);
-      } catch (err) {
-        console.error("Error fetching Shopify products:", err);
-      } finally {
-        setShopifyLoading(false);
-      }
-    };
-    loadShopifyProducts();
-  }, []);
-
-  // Combine and deduplicate products
-  const unifiedProducts = useMemo(() => {
-    const products: UnifiedProduct[] = [];
-    const seenHandles = new Set<string>();
-
-    // Add Shopify products first (they have checkout capability)
-    shopifyProducts.forEach((sp) => {
-      const handle = sp.node.handle;
-      if (!seenHandles.has(handle)) {
-        seenHandles.add(handle);
-        products.push({
-          id: sp.node.id,
-          title: sp.node.title,
-          author: null, // Shopify uses vendor for author
-          description: sp.node.description,
-          price: parseFloat(sp.node.priceRange.minVariantPrice.amount),
-          originalPrice: null,
-          category: null, // Would need to parse from tags/type
-          imageUrl: sp.node.images.edges[0]?.node.url || null,
-          handle,
-          inStock: sp.node.variants.edges.some(v => v.node.availableForSale),
-          featured: false,
-          source: "shopify",
-          originalData: sp,
-        });
-      }
-    });
-
-    // Add database books (may have more metadata)
-    dbBooks.forEach((book) => {
-      if (!seenHandles.has(book.handle)) {
-        seenHandles.add(book.handle);
-        products.push({
-          id: book.id,
-          title: book.title,
-          author: book.author,
-          description: book.description,
-          price: book.price,
-          originalPrice: book.original_price,
-          category: book.category,
-          imageUrl: book.image_url,
-          handle: book.handle,
-          inStock: book.in_stock ?? true,
-          featured: book.featured ?? false,
-          source: "database",
-          originalData: book,
-        });
-      }
-    });
-
-    return products;
-  }, [dbBooks, shopifyProducts]);
-
-  // Extract unique authors from products
-  const uniqueAuthors = useMemo(() => {
-    const authors = unifiedProducts
-      .map((p) => p.author)
-      .filter((author): author is string => !!author && author.trim() !== "");
-    return Array.from(new Set(authors)).sort();
-  }, [unifiedProducts]);
-
-  // Calculate min and max prices from products
   const { minProductPrice, maxProductPrice } = useMemo(() => {
-    if (unifiedProducts.length === 0) return { minProductPrice: 0, maxProductPrice: 500 };
-    const prices = unifiedProducts.map((p) => p.price);
+    if (!products || products.length === 0) return { minProductPrice: 0, maxProductPrice: 1000 };
+    const prices = products.map((p) => p.price);
     return {
       minProductPrice: Math.floor(Math.min(...prices)),
       maxProductPrice: Math.ceil(Math.max(...prices)),
     };
-  }, [unifiedProducts]);
+  }, [products]);
 
-  // Initialize price range when products load
   useEffect(() => {
-    if (unifiedProducts.length > 0 && priceRange[0] === 0 && priceRange[1] === 500) {
+    if (products && products.length > 0 && priceRange[0] === 0 && priceRange[1] === 1000) {
       setPriceRange([minProductPrice, maxProductPrice]);
     }
-  }, [unifiedProducts, minProductPrice, maxProductPrice]);
-
-  const handlePriceChange = (min: number, max: number) => {
-    setPriceRange([min, max]);
-  };
+  }, [products, minProductPrice, maxProductPrice]);
 
   const handleCategoryChange = (value: string) => {
     setFilterCategory(value);
@@ -351,8 +70,6 @@ const AllBooks = () => {
 
   const clearFilters = () => {
     setFilterCategory("all");
-    setFilterAuthor("all");
-    setFilterRating("all");
     setShowOnlyInStock(false);
     setSearchQuery("");
     setPriceRange([minProductPrice, maxProductPrice]);
@@ -361,61 +78,36 @@ const AllBooks = () => {
 
   const hasActiveFilters = 
     filterCategory !== "all" || 
-    filterAuthor !== "all" || 
-    filterRating !== "all" ||
     showOnlyInStock || 
     searchQuery.trim() !== "" ||
     priceRange[0] !== minProductPrice || 
     priceRange[1] !== maxProductPrice;
 
   const filteredProducts = useMemo(() => {
-    let result = [...unifiedProducts];
+    if (!products) return [];
+    let result = [...products];
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       result = result.filter((product) => {
         const title = product.title.toLowerCase();
-        const author = product.author?.toLowerCase() || "";
         const description = product.description?.toLowerCase() || "";
-        return title.includes(query) || author.includes(query) || description.includes(query);
+        return title.includes(query) || description.includes(query);
       });
     }
 
-    // Filter by price range
     result = result.filter((product) => {
       return product.price >= priceRange[0] && product.price <= priceRange[1];
     });
 
-    // Filter by category
     if (filterCategory !== "all") {
-      result = result.filter((product) => {
-        const category = product.category?.toLowerCase() || "";
-        const filterLower = filterCategory.toLowerCase();
-        return category.includes(filterLower) || product.title.toLowerCase().includes(filterLower);
-      });
+      result = result.filter((product) => product.category === filterCategory);
     }
 
-    // Filter by author
-    if (filterAuthor !== "all") {
-      result = result.filter((product) => product.author === filterAuthor);
-    }
-
-    // Filter by rating
-    if (filterRating !== "all") {
-      const minRating = parseInt(filterRating);
-      result = result.filter((product) => {
-        const rating = getRating(product.handle);
-        return rating && rating.average_rating >= minRating;
-      });
-    }
-
-    // Filter by availability
     if (showOnlyInStock) {
-      result = result.filter((product) => product.inStock);
+      result = result.filter((product) => product.in_stock);
     }
 
-    // Sort
     switch (sortBy) {
       case "price-asc":
         result.sort((a, b) => a.price - b.price);
@@ -426,36 +118,20 @@ const AllBooks = () => {
       case "name":
         result.sort((a, b) => a.title.localeCompare(b.title));
         break;
-      case "rating":
-        result.sort((a, b) => {
-          const ratingA = getRating(a.handle)?.average_rating || 0;
-          const ratingB = getRating(b.handle)?.average_rating || 0;
-          return ratingB - ratingA;
-        });
-        break;
       case "newest":
       default:
-        // Featured first, then by title
-        result.sort((a, b) => {
-          if (a.featured !== b.featured) return b.featured ? 1 : -1;
-          return a.title.localeCompare(b.title);
-        });
+        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         break;
     }
 
     return result;
-  }, [unifiedProducts, sortBy, filterCategory, filterAuthor, filterRating, showOnlyInStock, searchQuery, priceRange, getRating]);
-
-  const loading = dbLoading || shopifyLoading;
+  }, [products, sortBy, filterCategory, showOnlyInStock, searchQuery, priceRange]);
 
   return (
     <>
       <Helmet>
-        <title>Todos os Livros | Orbe Livros</title>
-        <meta
-          name="description"
-          content="Explore nossa coleção completa de livros. Romances, clássicos, fantasia, autoajuda e muito mais para você se apaixonar."
-        />
+        <title>Todos os Produtos | Dropshipping Store</title>
+        <meta name="description" content="Explore nossa coleção completa de produtos." />
       </Helmet>
 
       <Header />
@@ -468,7 +144,7 @@ const AllBooks = () => {
                 Nossa Coleção Completa
               </h1>
               <p className="text-muted-foreground text-lg">
-                Descubra histórias que vão transformar suas tardes e noites em momentos inesquecíveis
+                Descubra produtos incríveis com os melhores preços
               </p>
             </div>
           </div>
@@ -481,7 +157,7 @@ const AllBooks = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Buscar por título ou autor..."
+                  placeholder="Buscar produtos..."
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   className="pl-10 pr-10"
@@ -499,117 +175,57 @@ const AllBooks = () => {
               <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Filter className="h-4 w-4" />
-                  <span className="text-sm">
-                    {filteredProducts.length} livros encontrados
-                    {searchQuery && ` para "${searchQuery}"`}
-                  </span>
+                  <span>{filteredProducts.length} produtos</span>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-[180px] justify-start">
-                        <SlidersHorizontal className="h-4 w-4 mr-2" />
-                        {priceRange[0] !== minProductPrice || priceRange[1] !== maxProductPrice
-                          ? `R$ ${priceRange[0]} - R$ ${priceRange[1]}`
-                          : "Preço"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-72 p-0" align="end">
-                      <PriceFilter
-                        minPrice={minProductPrice}
-                        maxPrice={maxProductPrice}
-                        currentMin={priceRange[0]}
-                        currentMax={priceRange[1]}
-                        onPriceChange={handlePriceChange}
-                      />
-                    </PopoverContent>
-                  </Popover>
-
+                <div className="flex flex-wrap gap-3 items-center">
                   <Select value={filterCategory} onValueChange={handleCategoryChange}>
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </SelectItem>
+                      <SelectItem value="all">Todas</SelectItem>
+                      {categories?.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
 
-                  {uniqueAuthors.length > 0 && (
-                    <Select value={filterAuthor} onValueChange={setFilterAuthor}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Autor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos os Autores</SelectItem>
-                        {uniqueAuthors.map((author) => (
-                          <SelectItem key={author} value={author}>
-                            {author}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-
-                  <Select value={filterRating} onValueChange={setFilterRating}>
+                  <Select value={sortBy} onValueChange={setSortBy}>
                     <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="Avaliação" />
+                      <SelectValue placeholder="Ordenar" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todas Avaliações</SelectItem>
-                      <SelectItem value="5">
-                        <span className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> 5 estrelas
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="4">
-                        <span className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> 4+ estrelas
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="3">
-                        <span className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> 3+ estrelas
-                        </span>
-                      </SelectItem>
+                      <SelectItem value="newest">Mais recentes</SelectItem>
+                      <SelectItem value="price-asc">Menor preço</SelectItem>
+                      <SelectItem value="price-desc">Maior preço</SelectItem>
+                      <SelectItem value="name">Nome A-Z</SelectItem>
                     </SelectContent>
                   </Select>
 
-                  <div className="flex items-center space-x-2 px-3 py-2 border rounded-md bg-background">
-                    <Checkbox 
-                      id="in-stock" 
+                  <PriceFilter
+                    min={minProductPrice}
+                    max={maxProductPrice}
+                    currentMin={priceRange[0]}
+                    currentMax={priceRange[1]}
+                    onChange={(min, max) => setPriceRange([min, max])}
+                  />
+
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="in-stock"
                       checked={showOnlyInStock}
-                      onCheckedChange={(checked) => setShowOnlyInStock(checked === true)}
+                      onCheckedChange={(checked) => setShowOnlyInStock(!!checked)}
                     />
-                    <label
-                      htmlFor="in-stock"
-                      className="text-sm font-medium leading-none cursor-pointer select-none"
-                    >
+                    <label htmlFor="in-stock" className="text-sm cursor-pointer">
                       Em estoque
                     </label>
                   </div>
 
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-[160px]">
-                      <SelectValue placeholder="Ordenar por" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="newest">Mais Recentes</SelectItem>
-                      <SelectItem value="name">Nome (A-Z)</SelectItem>
-                      <SelectItem value="price-asc">Preço: Menor</SelectItem>
-                      <SelectItem value="price-desc">Preço: Maior</SelectItem>
-                      <SelectItem value="rating">Melhor Avaliados</SelectItem>
-                    </SelectContent>
-                  </Select>
-
                   {hasActiveFilters && (
-                    <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+                    <Button variant="ghost" size="sm" onClick={clearFilters}>
                       <X className="h-4 w-4 mr-1" />
-                      Limpar filtros
+                      Limpar
                     </Button>
                   )}
                 </div>
@@ -618,41 +234,25 @@ const AllBooks = () => {
           </div>
         </section>
 
-        <section className="py-12 md:py-16">
+        <section className="py-12">
           <div className="container">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
+            {isLoading ? (
+              <div className="flex justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-20 bg-card rounded-2xl">
+              <div className="text-center py-20">
                 <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="font-serif text-2xl font-semibold text-foreground mb-2">
-                  Nenhum livro encontrado
-                </h3>
-                <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                  Tente ajustar os filtros para ver mais resultados.
+                <h2 className="font-serif text-2xl font-bold mb-2">Nenhum produto encontrado</h2>
+                <p className="text-muted-foreground mb-6">
+                  Tente ajustar os filtros ou buscar por outro termo.
                 </p>
-                <Button variant="outline" onClick={clearFilters}>
-                  Limpar Filtros
-                </Button>
+                <Button onClick={clearFilters}>Limpar filtros</Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-                {filteredProducts.map((product, index) => (
-                  product.source === "shopify" ? (
-                    <ProductCard 
-                      key={product.id} 
-                      product={product.originalData as ShopifyProduct} 
-                      index={index} 
-                    />
-                  ) : (
-                    <DatabaseBookCard 
-                      key={product.id} 
-                      book={product.originalData as Book}
-                      rating={getRating(product.handle)}
-                    />
-                  )
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             )}
