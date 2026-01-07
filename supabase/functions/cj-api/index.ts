@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,6 +7,9 @@ const corsHeaders = {
 };
 
 const CJ_API_BASE = "https://developers.cjdropshipping.com/api2.0/v1";
+const TOKEN_CACHE_KEY = "cj_access_token";
+const TOKEN_VALIDITY_SECONDS = 86400; // CJ tokens are valid for 24 hours, but we'll refresh after 23h to be safe
+const TOKEN_REFRESH_BUFFER = 3600; // Refresh 1 hour before expiry
 
 interface CJApiResponse {
   code: number;
@@ -16,7 +19,32 @@ interface CJApiResponse {
   requestId: string;
 }
 
-async function getAccessToken(): Promise<string> {
+interface TokenCache {
+  token: string;
+  expires_at: string;
+}
+
+async function getAccessToken(supabaseClient: SupabaseClient): Promise<string> {
+  // Check for cached token in site_settings table
+  const { data: cached } = await supabaseClient
+    .from("site_settings")
+    .select("value")
+    .eq("key", TOKEN_CACHE_KEY)
+    .single();
+
+  if (cached?.value) {
+    const tokenData = cached.value as TokenCache;
+    const expiresAt = new Date(tokenData.expires_at);
+    const now = new Date();
+    
+    // Return cached token if still valid (with buffer)
+    if (expiresAt.getTime() - now.getTime() > TOKEN_REFRESH_BUFFER * 1000) {
+      console.log("Using cached CJ access token");
+      return tokenData.token;
+    }
+  }
+
+  // Need to fetch new token
   const apiKey = Deno.env.get("CJ_API_KEY");
   const email = Deno.env.get("CJ_EMAIL");
   
@@ -24,6 +52,7 @@ async function getAccessToken(): Promise<string> {
     throw new Error("CJ API credentials not configured");
   }
 
+  console.log("Fetching new CJ access token...");
   const response = await fetch(`${CJ_API_BASE}/authentication/getAccessToken`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -36,11 +65,22 @@ async function getAccessToken(): Promise<string> {
     throw new Error(`CJ Auth failed: ${data.message}`);
   }
 
-  return data.data as string;
+  const newToken = data.data as string;
+  const expiresAt = new Date(Date.now() + TOKEN_VALIDITY_SECONDS * 1000);
+
+  // Cache the new token
+  await supabaseClient.from("site_settings").upsert({
+    key: TOKEN_CACHE_KEY,
+    value: { token: newToken, expires_at: expiresAt.toISOString() },
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "key" });
+
+  console.log("New CJ token cached, expires at:", expiresAt.toISOString());
+  return newToken;
 }
 
-async function cjRequest(endpoint: string, method: string = "GET", body?: unknown): Promise<CJApiResponse> {
-  const accessToken = await getAccessToken();
+async function cjRequest(supabaseClient: SupabaseClient, endpoint: string, method: string = "GET", body?: unknown): Promise<CJApiResponse> {
+  const accessToken = await getAccessToken(supabaseClient);
   
   const options: RequestInit = {
     method,
@@ -75,7 +115,7 @@ serve(async (req) => {
 
     switch (action) {
       case "getCategories": {
-        const response = await cjRequest("/product/getCategory");
+        const response = await cjRequest(supabaseClient, "/product/getCategory");
         result = response.data;
         break;
       }
@@ -86,7 +126,7 @@ serve(async (req) => {
         if (categoryId) body.categoryId = categoryId;
         if (keyword) body.productNameEn = keyword;
         
-        const response = await cjRequest("/product/list", "POST", body);
+        const response = await cjRequest(supabaseClient, "/product/list", "POST", body);
         result = response.data;
         break;
       }
@@ -102,7 +142,7 @@ serve(async (req) => {
           productNameEn: "book",
         };
         
-        const searchResponse = await cjRequest("/product/list", "POST", searchBody);
+        const searchResponse = await cjRequest(supabaseClient, "/product/list", "POST", searchBody);
         
         if (!searchResponse.result) {
           throw new Error(`Search failed: ${searchResponse.message}`);
@@ -195,14 +235,14 @@ serve(async (req) => {
 
       case "getProductDetails": {
         const { pid } = params;
-        const response = await cjRequest(`/product/query?pid=${pid}`);
+        const response = await cjRequest(supabaseClient, `/product/query?pid=${pid}`);
         result = response.data;
         break;
       }
 
       case "getVariants": {
         const { pid } = params;
-        const response = await cjRequest(`/product/variant/query?pid=${pid}`);
+        const response = await cjRequest(supabaseClient, `/product/variant/query?pid=${pid}`);
         result = response.data;
         break;
       }
@@ -224,7 +264,7 @@ serve(async (req) => {
         // Get first variant ID
         let cjVariantId = null;
         try {
-          const variantsResponse = await cjRequest(`/product/variant/query?pid=${product.pid}`);
+          const variantsResponse = await cjRequest(supabaseClient, `/product/variant/query?pid=${product.pid}`);
           if (variantsResponse.result && Array.isArray(variantsResponse.data) && variantsResponse.data.length > 0) {
             cjVariantId = variantsResponse.data[0].vid;
           }
@@ -267,7 +307,7 @@ serve(async (req) => {
           quantity: item.quantity,
         }));
 
-        const response = await cjRequest("/shopping/order/createOrderV2", "POST", {
+        const response = await cjRequest(supabaseClient, "/shopping/order/createOrderV2", "POST", {
           orderNumber: order.order_number,
           shippingZip: order.shipping_zip,
           shippingCountryCode: order.shipping_country_code,
@@ -282,7 +322,7 @@ serve(async (req) => {
           remark: `Order from dropshipping store`,
           fromCountryCode: "CN",
           logisticName: "CJPacket Ordinary",
-          payType: 3, // No balance payment
+          payType: 3,
           platform: "other",
           products,
         });
@@ -304,14 +344,14 @@ serve(async (req) => {
 
       case "getOrderStatus": {
         const { orderId } = params;
-        const response = await cjRequest(`/shopping/order/getOrderDetail?orderId=${orderId}`);
+        const response = await cjRequest(supabaseClient, `/shopping/order/getOrderDetail?orderId=${orderId}`);
         result = response.data;
         break;
       }
 
       case "getShippingMethods": {
         const { startCountryCode = "CN", endCountryCode, productWeight } = params;
-        const response = await cjRequest("/logistic/freightCalculate", "POST", {
+        const response = await cjRequest(supabaseClient, "/logistic/freightCalculate", "POST", {
           startCountryCode,
           endCountryCode,
           productWeight,
