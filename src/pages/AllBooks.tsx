@@ -204,11 +204,11 @@ const AllBooks = () => {
                   </Select>
 
                   <PriceFilter
-                    min={minProductPrice}
-                    max={maxProductPrice}
+                    minPrice={minProductPrice}
+                    maxPrice={maxProductPrice}
                     currentMin={priceRange[0]}
                     currentMax={priceRange[1]}
-                    onChange={(min, max) => setPriceRange([min, max])}
+                    onPriceChange={(min, max) => setPriceRange([min, max])}
                   />
 
                   <div className="flex items-center gap-2">

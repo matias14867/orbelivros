@@ -41,10 +41,10 @@ const ProductDetail = () => {
       }
     } else {
       await addFavorite({
-        product_handle: product.handle,
-        product_title: product.title,
-        product_image: product.image_url,
-        product_price: product.price,
+        handle: product.handle,
+        title: product.title,
+        image: product.image_url || undefined,
+        price: product.price,
       });
       toast.success("Adicionado aos favoritos!");
     }
